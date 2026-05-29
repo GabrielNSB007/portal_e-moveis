@@ -2,6 +2,8 @@ import express, { type Application } from 'express';
 import cors from "cors";
 import { AppRoutes } from './decorator/appRoutesDecorator.js';
 
+import { matchRoutes } from './routes/match.routes.js';
+
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -15,16 +17,23 @@ export default class App {
 
   constructor(port = 8080) {
     this.app = express();
+
     this.app.use(cors({ origin: "*" }));
     this.app.use(express.json());
+
     this.port = port;
+
     this.setupRoutes();
   }
 
   setupRoutes() {
+
     this.app.get('/', (req: any, res: any) => {
       res.json({ message: 'Hello World' });
     });
+
+    this.app.use('/matches', matchRoutes);
+
   }
 
   start() {
