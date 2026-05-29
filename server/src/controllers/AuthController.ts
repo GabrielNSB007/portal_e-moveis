@@ -3,6 +3,7 @@ import { HttpStatusEnum } from "../shared/enums/httpStatusEnum.js";
 import { MessagesEnum } from "../shared/enums/messagesEnum.js";
 import { AuthService } from "../services/AuthService.js";
 import { LoginSchemaType, RegisterSchemaType, UpdateUserSchemaType } from "../schemas/AuthSchema.js";
+import { UserRole } from "@prisma/client";
 
 export class AuthController {
     constructor(private authService: AuthService = new AuthService()) {}
@@ -19,8 +20,8 @@ export class AuthController {
 
     async register (req: Request<{}, {}, RegisterSchemaType>, res: Response) {
         try {
-            const { email, password, name } = req.body;
-            const token = await this.authService.registerUser(email, password, name);
+            const { email, password, name, phone, userRole } = req.body;
+            const token = await this.authService.registerUser(email, password, name, userRole as UserRole, phone);
             res.status(HttpStatusEnum.CREATED).json({ token });
         } catch(err: any) {
             // Email já registrado
@@ -45,8 +46,8 @@ export class AuthController {
     async update (req: Request<{}, {}, UpdateUserSchemaType>, res: Response) {
         try {
             const userId = res.locals.userId;
-            const { email, name, password } = req.body;
-            const updatedUser = await this.authService.updateUser(userId, email, name, password);
+            const { email, name, password, phone } = req.body;
+            const updatedUser = await this.authService.updateUser(userId, email, name, password, phone);
             res.status(HttpStatusEnum.OK).json(updatedUser);
         } catch(err: any) {
             if (err.message === MessagesEnum.ERROR_USER_NOT_FOUND) {

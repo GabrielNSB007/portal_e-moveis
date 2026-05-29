@@ -1,9 +1,13 @@
-import { PrismaClient, type User, Prisma } from "@prisma/client";
+import { PrismaClient, type User, Prisma, UserRole } from "@prisma/client";
 
 export type SafeUser = {
     id: string;
     name: string;
     email: string;
+    phone?: string | null;
+    role: UserRole;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 export class AuthRepository {
@@ -21,6 +25,10 @@ export class AuthRepository {
                 id: true,
                 name: true,
                 email: true,
+                phone: true,
+                role: true,
+                createdAt: true,
+                updatedAt: true,
             },
             where: { id: id }
         });
@@ -29,6 +37,8 @@ export class AuthRepository {
     async create (
         email: string,
         password: string,
+        role: UserRole,
+        phone: string | undefined,
         name: string,
     ) : Promise<User>  {
         return await this.prisma.user.create({
@@ -36,6 +46,8 @@ export class AuthRepository {
                 email: email,
                 password: password,
                 name: name,
+                role: role,
+                phone: phone,
             }
         })
     }
@@ -48,18 +60,29 @@ export class AuthRepository {
                 id: true,
                 name: true,
                 email: true,
+                phone: true,
+                role: true,
+                createdAt: true,
+                updatedAt: true,
             }
         });
         return updatedUser;
     }
 
     async delete(id: string): Promise<SafeUser> {
+        if (!id) {
+            throw new Error("ID is required");
+        }
         const deletedUser = await this.prisma.user.delete({
             where: { id },
             select: {
                 id: true,
                 name: true,
                 email: true,
+                phone: true,
+                role: true,
+                createdAt: true,
+                updatedAt: true,
             }
         });
         return deletedUser;

@@ -1,3 +1,4 @@
+import { UserRole } from "@prisma/client";
 import { AuthRepository } from "../repositories/AuthRepository.js";
 import { MessagesEnum } from "../shared/enums/messagesEnum.js";
 import { SystemConstantsEnum } from "../shared/enums/systemConstantsEnum.js";
@@ -22,17 +23,18 @@ export class AuthService {
         return token;
     }
 
-
     async registerUser(
         email: string,
         password: string,
         name: string,
+        userRole: UserRole,
+        phone?: string,
     ) : Promise<string> {
         const dbUser = await this.authRepository.getByEmail(email);
         if (dbUser) throw new Error(MessagesEnum.ERROR_EMAIL_ALREADY_REGISTERED);
 
         password = await bcrypt.hash(password, SystemConstantsEnum.BCRYPT_SALT_ROUNDS);
-        const newUser = await this.authRepository.create(email, password, name);
+        const newUser = await this.authRepository.create(email, password, userRole, phone, name);
 
         const token = generateAccessToken(newUser.id);
         return token;
@@ -45,7 +47,7 @@ export class AuthService {
         return user;
     }
 
-    async updateUser(userId: string, email?: string, name?: string, password?: string) {
+    async updateUser(userId: string, email?: string, name?: string, password?: string, phone?: string) {
         const user = await this.authRepository.getById(userId);
         if (!user) throw new Error(MessagesEnum.ERROR_USER_NOT_FOUND);
 
@@ -58,6 +60,7 @@ export class AuthService {
         const updateData: any = {};
         if (email) updateData.email = email;
         if (name) updateData.name = name;
+        if (phone) updateData.phone = phone;
         if (password) {
             updateData.password = await bcrypt.hash(password, SystemConstantsEnum.BCRYPT_SALT_ROUNDS);
         }
