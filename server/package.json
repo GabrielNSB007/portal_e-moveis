@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/App.ts",
+    "start": "npx prisma generate && npx prisma db push && npm run build && node dist/src/App.js",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest"
