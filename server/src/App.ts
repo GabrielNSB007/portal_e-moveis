@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Theese imports forces decorator @AppRoutes render routes, this is not desired, if youre able to fix it, please do :)
+import './routes/AuthRoutes.js';
 
 @AppRoutes
 export default class App {
