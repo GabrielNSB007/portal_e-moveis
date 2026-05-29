@@ -40,16 +40,28 @@ export class AuthRepository {
         })
     }
 
-    async update(id: string, data: Partial<User>): Promise<User> {
-        return await this.prisma.user.update({
-        where: { id },
-        data
+    async update(id: string, data: Partial<User>): Promise<SafeUser> {
+        const updatedUser = await this.prisma.user.update({
+            where: { id },
+            data,
+            select: {
+                id: true,
+                name: true,
+                email: true,
+            }
         });
+        return updatedUser;
     }
 
-    async delete(id: string): Promise<User> {
-        return await this.prisma.user.delete({
-        where: { id }
+    async delete(id: string): Promise<SafeUser> {
+        const deletedUser = await this.prisma.user.delete({
+            where: { id },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+            }
         });
+        return deletedUser;
     }
 }

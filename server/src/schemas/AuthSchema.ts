@@ -15,5 +15,14 @@ export const RegisterSchema = z.object({
     })
 })
 
+export const UpdateUserSchema = z.object({
+    body: z.object({
+        email: z.string().email().optional(),
+        name: z.string().min(1).optional(),
+        password: z.string().min(6).optional(),
+    })
+})
+
 export type LoginSchemaType = z.infer<typeof LoginSchema.shape.body>;
 export type RegisterSchemaType = z.infer<typeof RegisterSchema.shape.body>;
+export type UpdateUserSchemaType = z.infer<typeof UpdateUserSchema.shape.body>;

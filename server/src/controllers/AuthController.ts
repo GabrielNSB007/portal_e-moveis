@@ -2,7 +2,7 @@ import { type Request, type Response } from "express";
 import { HttpStatusEnum } from "../shared/enums/httpStatusEnum.js";
 import { MessagesEnum } from "../shared/enums/messagesEnum.js";
 import { AuthService } from "../services/AuthService.js";
-import { LoginSchemaType, RegisterSchemaType } from "../schemas/AuthSchema.js";
+import { LoginSchemaType, RegisterSchemaType, UpdateUserSchemaType } from "../schemas/AuthSchema.js";
 
 export class AuthController {
     constructor(private authService: AuthService = new AuthService()) {}
@@ -39,6 +39,36 @@ export class AuthController {
             res.status(HttpStatusEnum.OK).json(userData);
         } catch(err: any) {
             res.status(HttpStatusEnum.INTERNAL_SERVER_ERROR).send({ error: err.message });
+        }
+    }
+
+    async update (req: Request<{}, {}, UpdateUserSchemaType>, res: Response) {
+        try {
+            const userId = res.locals.userId;
+            const { email, name, password } = req.body;
+            const updatedUser = await this.authService.updateUser(userId, email, name, password);
+            res.status(HttpStatusEnum.OK).json(updatedUser);
+        } catch(err: any) {
+            if (err.message === MessagesEnum.ERROR_USER_NOT_FOUND) {
+                return res.status(HttpStatusEnum.UNAUTHORIZED).send({ error: err.message });
+            }
+            if (err.message === MessagesEnum.ERROR_EMAIL_ALREADY_REGISTERED) {
+                return res.status(HttpStatusEnum.UNPROCESSABLE_ENTITY).send({ error: err.message });
+            }
+            res.status(HttpStatusEnum.INTERNAL_SERVER_ERROR).send({ error: err.message || MessagesEnum.ERROR_SERVER });
+        }
+    }
+
+    async delete (req: Request, res: Response) {
+        try {
+            const userId = res.locals.userId;
+            const deletedUser = await this.authService.deleteUser(userId);
+            res.status(HttpStatusEnum.OK).json({ message: "Usuário deletado com sucesso", user: deletedUser });
+        } catch(err: any) {
+            if (err.message === MessagesEnum.ERROR_USER_NOT_FOUND) {
+                return res.status(HttpStatusEnum.UNAUTHORIZED).send({ error: err.message });
+            }
+            res.status(HttpStatusEnum.INTERNAL_SERVER_ERROR).send({ error: err.message || MessagesEnum.ERROR_SERVER });
         }
     }
 }

@@ -3,7 +3,7 @@ import { AuthController } from "../controllers/AuthController.js";
 import { Route } from "../decorator/routeDecorator.js";
 import { authenticate } from "../middleware/authenticate.js";
 import { validate } from "../middleware/validate.js";
-import { LoginSchema, RegisterSchema } from "../schemas/AuthSchema.js";
+import { LoginSchema, RegisterSchema, UpdateUserSchema } from "../schemas/AuthSchema.js";
 
 @Route("/auth")
 export class AuthRoutes {
@@ -14,5 +14,7 @@ export class AuthRoutes {
         this.router.post('/login', validate(LoginSchema), (req, res) => this.authController.login(req, res));
         this.router.post('/register', validate(RegisterSchema), (req, res) => this.authController.register(req, res));
         this.router.get('/profile', authenticate, (req, res) => this.authController.profile(req, res));
+        this.router.put('/profile', authenticate, validate(UpdateUserSchema), (req, res) => this.authController.update(req, res));
+        this.router.delete('/profile', authenticate, (req, res) => this.authController.delete(req, res));
     }
 }
