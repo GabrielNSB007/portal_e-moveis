@@ -1,16 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  HeadContent,
   Link,
   Outlet,
-  Scripts,
   createRootRouteWithContext,
   useRouter,
 } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/hooks/use-theme";
 
-import appCss from "../styles.css?url";
+import appCss from "../styles/global.css?url";
 
 function NotFoundComponent() {
   return (
@@ -104,25 +102,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
     ],
   }),
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
-
-function RootShell({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="pt-BR">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();

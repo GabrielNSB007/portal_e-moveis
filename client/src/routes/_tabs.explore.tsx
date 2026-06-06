@@ -25,17 +25,17 @@ function Explore() {
   const [activeChip, setActiveChip] = useState("Para você");
   const [budget, setBudget] = useState([300000, 1500000]);
 
-  const filtered = useMemo(
-    () =>
-      properties.filter(
-        (p) =>
-          !query ||
-          p.title.toLowerCase().includes(query.toLowerCase()) ||
-          p.neighborhood.toLowerCase().includes(query.toLowerCase()) ||
-          p.type.toLowerCase().includes(query.toLowerCase())
-      ),
-    [query]
-  );
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    if (!normalizedQuery) return properties;
+
+    return properties.filter((property) =>
+      [property.title, property.neighborhood, property.city, property.type]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedQuery)),
+    );
+  }, [query]);
 
   const top = filtered[0];
   const rest = filtered.slice(1);
@@ -174,12 +174,13 @@ function SearchBox({ query, setQuery }: { query: string; setQuery: (value: strin
 function QuickChip({ value, active, onClick }: { value: string; active: boolean; onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
         "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition",
         active
           ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-card text-muted-foreground hover:text-foreground"
+          : "border-border bg-card text-muted-foreground hover:text-foreground",
       )}
     >
       {value}
@@ -206,10 +207,11 @@ function FilterSidebar({
           <div className="flex flex-wrap gap-2">
             {NBHD.map((n, idx) => (
               <button
+                type="button"
                 key={n}
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-xs transition",
-                  idx < 2 ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground"
+                  idx < 2 ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground",
                 )}
               >
                 {n}
@@ -222,10 +224,11 @@ function FilterSidebar({
           <div className="grid grid-cols-2 gap-2">
             {TYPES.map((type, idx) => (
               <button
+                type="button"
                 key={type}
                 className={cn(
                   "rounded-xl border px-3 py-2 text-xs font-medium transition",
-                  idx === 0 ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background"
+                  idx === 0 ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background",
                 )}
               >
                 {type}

@@ -75,11 +75,11 @@ export function PropertyCard({
   }
 
   return (
-    <motion.div
+    <motion.article
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.99 }}
       className={cn(
-        "group relative overflow-hidden rounded-3xl bg-card shadow-card transition",
+        "group overflow-hidden rounded-3xl bg-card shadow-card transition",
         v === "compact" && "shadow-soft",
         v === "hero" && "lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]",
       )}
@@ -107,52 +107,59 @@ export function PropertyCard({
             </div>
           </div>
         </div>
-        <div className={cn("p-3.5", v === "hero" && "lg:flex lg:flex-col lg:justify-between lg:p-6")}>
-          <div>
-            <h3 className={cn("line-clamp-1 text-sm font-semibold", v === "hero" && "lg:text-xl")}>
-              {property.title}
-            </h3>
-            <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-              <MapPin className="h-3 w-3" />
-              {property.neighborhood}, {property.city}
-            </div>
-            {v !== "compact" && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                <Spec icon={BedDouble} value={`${property.bedrooms} quartos`} />
-                <Spec icon={Bath} value={property.bathrooms} />
-                <Spec icon={Maximize} value={`${property.area}m2`} />
-                {property.parking > 0 && <Spec icon={Car} value={property.parking} />}
-              </div>
-            )}
-            {v === "hero" && (
-              <p className="mt-4 hidden text-sm leading-relaxed text-muted-foreground lg:block">{property.reason}</p>
-            )}
-          </div>
-          {v !== "compact" && <div className="mt-3 h-10" aria-hidden="true" />}
-        </div>
       </Link>
 
-      <button
-        onClick={toggleSave}
-        aria-label="Salvar"
-        className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-card/90 text-foreground shadow-soft backdrop-blur-md transition active:scale-95"
-      >
-        <Bookmark className={cn("h-4 w-4", saved && "fill-primary text-primary")} />
-      </button>
+      <div className={cn("p-3.5", v === "hero" && "lg:flex lg:flex-col lg:justify-between lg:p-6")}>
+        <div>
+          <div className="flex items-start gap-2">
+            <Link to="/property/$id" params={{ id: property.id }} className="min-w-0 flex-1">
+              <h3 className={cn("line-clamp-1 text-sm font-semibold", v === "hero" && "lg:text-xl")}>
+                {property.title}
+              </h3>
+              <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                <MapPin className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  {property.neighborhood}, {property.city}
+                </span>
+              </div>
+            </Link>
+            <button
+              onClick={toggleSave}
+              aria-label="Salvar"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-foreground transition active:scale-95"
+            >
+              <Bookmark className={cn("h-4 w-4", saved && "fill-primary text-primary")} />
+            </button>
+          </div>
 
-      {v !== "compact" && (
-        <button
-          onClick={registerInterest}
-          className={cn(
-            "absolute inset-x-3 bottom-3 flex h-10 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition active:scale-[0.98]",
-            interested ? "bg-success/15 text-success" : "bg-primary text-primary-foreground shadow-soft",
+          {v !== "compact" && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+              <Spec icon={BedDouble} value={`${property.bedrooms} quartos`} />
+              <Spec icon={Bath} value={property.bathrooms} />
+              <Spec icon={Maximize} value={`${property.area}m2`} />
+              {property.parking > 0 && <Spec icon={Car} value={property.parking} />}
+            </div>
           )}
-        >
-          <Handshake className="h-4 w-4" />
-          {interested ? "Interesse enviado" : "Tenho interesse"}
-        </button>
-      )}
-    </motion.div>
+
+          {v === "hero" && (
+            <p className="mt-4 hidden text-sm leading-relaxed text-muted-foreground lg:block">{property.reason}</p>
+          )}
+        </div>
+
+        {v !== "compact" && (
+          <button
+            onClick={registerInterest}
+            className={cn(
+              "mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition active:scale-[0.98]",
+              interested ? "bg-success/15 text-success" : "bg-primary text-primary-foreground shadow-soft",
+            )}
+          >
+            <Handshake className="h-4 w-4" />
+            {interested ? "Interesse enviado" : "Tenho interesse"}
+          </button>
+        )}
+      </div>
+    </motion.article>
   );
 }
 

@@ -1,25 +1,20 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Slider } from "@/components/ui/slider";
-import { Button } from "@/components/ui/button";
-import { fmtCurrency } from "@/mock/data";
+import { X } from "lucide-react";
 import { useState } from "react";
+import { fmtCurrency } from "@/mock/data";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
 const TYPES = ["Apartamento", "Casa", "Studio", "Cobertura", "Comercial"];
-const NBHD = ["Vila Madalena", "Pinheiros", "Itaim Bibi", "Perdizes", "Vila Olímpia", "Alto de Pinheiros"];
-const AMEN = ["Piscina", "Academia", "Pet friendly", "Segurança 24h", "Coworking", "Quintal"];
+const NBHD = ["Vila Madalena", "Pinheiros", "Itaim Bibi", "Perdizes", "Vila Olimpia", "Alto de Pinheiros"];
+const AMEN = ["Piscina", "Academia", "Pet friendly", "Seguranca 24h", "Coworking", "Quintal"];
 
 export function FilterModal({
   open,
   onOpenChange,
 }: {
   open: boolean;
-  onOpenChange: (o: boolean) => void;
+  onOpenChange: (open: boolean) => void;
 }) {
   const [budget, setBudget] = useState([300000, 1500000]);
   const [rooms, setRooms] = useState(2);
@@ -27,18 +22,36 @@ export function FilterModal({
   const [nbhd, setNbhd] = useState<string[]>([]);
   const [amen, setAmen] = useState<string[]>([]);
 
-  const tog = (arr: string[], v: string, set: (s: string[]) => void) =>
-    set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+  if (!open) return null;
+
+  const toggle = (arr: string[], value: string, set: (next: string[]) => void) => {
+    set(arr.includes(value) ? arr.filter((item) => item !== value) : [...arr, value]);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-xl">Filtros</DialogTitle>
-        </DialogHeader>
+    <div className="fixed inset-0 z-50 lg:hidden">
+      <button
+        type="button"
+        aria-label="Fechar filtros"
+        className="absolute inset-0 bg-black/45"
+        onClick={() => onOpenChange(false)}
+      />
 
-        <div className="space-y-6 py-2">
-          <Section title="Orçamento">
+      <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-hidden rounded-t-3xl border-t border-border bg-background shadow-card">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h2 className="text-lg font-semibold">Filtros</h2>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="grid h-10 w-10 place-items-center rounded-full bg-secondary"
+            aria-label="Fechar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="max-h-[calc(88dvh-8.5rem)] space-y-6 overflow-y-auto px-4 py-4">
+          <Section title="Orcamento">
             <Slider
               value={budget}
               onValueChange={setBudget}
@@ -53,56 +66,70 @@ export function FilterModal({
           </Section>
 
           <Section title="Bairros">
-            <Chips items={NBHD} selected={nbhd} onToggle={(v) => tog(nbhd, v, setNbhd)} />
+            <Chips items={NBHD} selected={nbhd} onToggle={(value) => toggle(nbhd, value, setNbhd)} />
           </Section>
 
           <Section title="Tipo">
-            <Chips items={TYPES} selected={types} onToggle={(v) => tog(types, v, setTypes)} />
+            <Chips items={TYPES} selected={types} onToggle={(value) => toggle(types, value, setTypes)} />
           </Section>
 
           <Section title="Quartos">
-            <div className="flex gap-2">
-              {[1, 2, 3, "4+"].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setRooms(Number(String(n).replace("+", "")))}
-                  className={cn(
-                    "h-10 flex-1 rounded-xl border text-sm font-medium transition",
-                    rooms === Number(String(n).replace("+", ""))
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card hover:bg-secondary"
-                  )}
-                >
-                  {n}
-                </button>
-              ))}
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 2, 3, "4+"].map((item) => {
+                const value = Number(String(item).replace("+", ""));
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setRooms(value)}
+                    className={cn(
+                      "h-11 rounded-xl border text-sm font-medium transition",
+                      rooms === value
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card hover:bg-secondary",
+                    )}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
             </div>
           </Section>
 
           <Section title="Comodidades">
-            <Chips items={AMEN} selected={amen} onToggle={(v) => tog(amen, v, setAmen)} />
+            <Chips items={AMEN} selected={amen} onToggle={(value) => toggle(amen, value, setAmen)} />
           </Section>
         </div>
 
-        <div className="sticky bottom-0 -mx-6 -mb-6 flex gap-2 border-t border-border bg-background/95 p-4 backdrop-blur">
-          <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+        <div className="flex gap-2 border-t border-border bg-background/95 p-4 safe-bottom">
+          <Button
+            variant="outline"
+            className="h-11 flex-1 rounded-2xl"
+            onClick={() => {
+              setBudget([300000, 1500000]);
+              setRooms(2);
+              setTypes(["Apartamento"]);
+              setNbhd([]);
+              setAmen([]);
+            }}
+          >
             Limpar
           </Button>
-          <Button className="flex-1 bg-gradient-primary" onClick={() => onOpenChange(false)}>
+          <Button className="h-11 flex-1 rounded-2xl bg-gradient-primary" onClick={() => onOpenChange(false)}>
             Aplicar filtros
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div>
-      <h4 className="mb-3 text-sm font-semibold">{title}</h4>
+    <section>
+      <h3 className="mb-3 text-sm font-semibold">{title}</h3>
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -113,24 +140,25 @@ function Chips({
 }: {
   items: string[];
   selected: string[];
-  onToggle: (v: string) => void;
+  onToggle: (value: string) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {items.map((it) => {
-        const active = selected.includes(it);
+      {items.map((item) => {
+        const active = selected.includes(item);
         return (
           <button
-            key={it}
-            onClick={() => onToggle(it)}
+            key={item}
+            type="button"
+            onClick={() => onToggle(item)}
             className={cn(
-              "rounded-full border px-3.5 py-1.5 text-sm transition",
+              "rounded-full border px-3.5 py-2 text-sm transition",
               active
                 ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-card text-foreground hover:bg-secondary"
+                : "border-border bg-card text-foreground hover:bg-secondary",
             )}
           >
-            {it}
+            {item}
           </button>
         );
       })}
