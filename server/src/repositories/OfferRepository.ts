@@ -22,11 +22,17 @@ export default class OfferRepository {
   async getById(id: string): Promise<Offer | null> {
     return await this.prisma.offer.findUnique({
       where: { id },
+      include: {
+        media: true,
+      },
     });
   }
 
   async getMany(): Promise<Offer[]> {
     return await this.prisma.offer.findMany({
+      include: {
+        media: true,
+      },
       orderBy: { createdAt: "desc" },
     });
   }

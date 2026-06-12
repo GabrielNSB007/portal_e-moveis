@@ -11,7 +11,7 @@ export class OfferRoutes {
         this.router.post('/create',(req, res) => this.offerController.create(req, res));
         this.router.get('/find/:id',(req, res) => this.offerController.readById(req, res));
         this.router.get('/find',(req, res) => this.offerController.readAll(req, res));
-        this.router.put('/profile/:id',(req, res) => this.offerController.update(req, res));
-        this.router.delete('/profile/:id',(req, res) => this.offerController.delete(req, res));
+        this.router.put('/update/:id',(req, res) => this.offerController.update(req, res));
+        this.router.delete('/delete/:id',(req, res) => this.offerController.delete(req, res));
     }
 }

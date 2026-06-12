@@ -1,6 +1,7 @@
 import { type Offer } from "@prisma/client";
 import { type Request, type Response } from "express";
 import OfferRepository from "../repositories/OfferRepository";
+import { type CreateOfferDTO, type UpdateOfferDTO } from "../DTOs/offerDTO";
 import { MessagesEnum } from "../shared/enums/messagesEnum";
 import { HttpStatusEnum } from "../shared/enums/httpStatusEnum.js";
 import { OfferService } from "../services/OfferService";
@@ -17,7 +18,7 @@ interface ReadOfferParams extends UpdateOfferParams{}
 export class OfferController{
     constructor(private offerService : OfferService = new OfferService()){}
 
-    async create (req : Request<{}, {}, Offer>, res: Response){
+    async create (req : Request<{}, {}, CreateOfferDTO>, res: Response){
         try {
             const data = req.body
             const offerData = await this.offerService.createOffer(data)
@@ -50,8 +51,7 @@ export class OfferController{
         }
     }
 
-    async update (req : Request<UpdateOfferParams, Partial<Offer>>, res : Response){
-        
+    async update (req : Request<UpdateOfferParams, {}, UpdateOfferDTO>, res : Response){
         try {
             
             const id = req.params.id
@@ -60,7 +60,7 @@ export class OfferController{
             const updatedData = await this.offerService.updateOffer(id, data)
             res.status(HttpStatusEnum.OK).json(updatedData)
         } catch (err : any) {
-            res.status(HttpStatusEnum.BAD_REQUEST).send({error: err.message})
+            res.status(HttpStatusEnum.INTERNAL_SERVER_ERROR).send({error: err.message})
         }
     }
 
@@ -72,7 +72,7 @@ export class OfferController{
             const deletedData = await this.offerService.deleteOffer(id)
             res.status(HttpStatusEnum.OK).json(deletedData)
         } catch (err : any) {
-            res.status(HttpStatusEnum.BAD_REQUEST).send({error: err.message})
+            res.status(HttpStatusEnum.INTERNAL_SERVER_ERROR).send({error: err.message})
         }
     }
 

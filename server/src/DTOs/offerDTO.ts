@@ -9,7 +9,7 @@ export interface CreateOfferDTO {
   title: string;
   description?: string;
 
-  price: Prisma.Decimal;
+  price: number;
 
   areaM2: number;
   bedrooms: number;

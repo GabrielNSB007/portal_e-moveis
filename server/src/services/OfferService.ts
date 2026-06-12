@@ -1,15 +1,12 @@
 import { type Offer } from "@prisma/client";
+import {CreateOfferDTO,UpdateOfferDTO} from "../DTOs/offerDTO";
 import OfferRepository from "../repositories/OfferRepository";
 import { MessagesEnum } from "../shared/enums/messagesEnum";
 
 export class OfferService {
     private offerRepository = new OfferRepository()
 
-    async createOffer(data: Offer) : Promise<Offer | null>{
-        const offerId = await this.offerRepository.getById(data.id)
-        if(offerId){
-            throw new Error(MessagesEnum.ERROR_EMAIL_ALREADY_REGISTERED)
-        }
+    async createOffer(data: CreateOfferDTO) : Promise<Offer | null>{
         const offer = await this.offerRepository.create(data)
         return offer
     }
@@ -28,13 +25,13 @@ export class OfferService {
         return offer
     }
 
-    async updateOffer(id:string, data: Partial<Offer>) {
-            const offerId = await this.offerRepository.getById(id);
-            if (!offerId) throw new Error(MessagesEnum.ERROR_USER_NOT_FOUND);
-    
-            const updatedOffer = await this.offerRepository.update(id, data);
-            return updatedOffer;
-        }
+    async updateOffer(id: string, data: UpdateOfferDTO) {
+        const offerId = await this.offerRepository.getById(id);
+        if (!offerId) throw new Error(MessagesEnum.ERROR_USER_NOT_FOUND);
+
+        const updatedOffer = await this.offerRepository.update(id, data);
+        return updatedOffer;
+    }
 
     async deleteOffer(id:string){
         const offerId = await this.offerRepository.getById(id)
