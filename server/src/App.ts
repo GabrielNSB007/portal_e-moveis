@@ -1,16 +1,14 @@
-import express, { type Application } from 'express';
+import express, { type Application } from "express";
 import cors from "cors";
-import { AppRoutes } from './decorator/appRoutesDecorator.js';
+import dotenv from "dotenv";
 
+import { AppRoutes } from "./decorator/appRoutesDecorator.js";
+import { matchRoutes } from "./routes/MatchRoutes.js";
 
-import { matchRoutes } from './routes/MatchRoutes.js';
-
-import dotenv from 'dotenv';
 dotenv.config();
 
 // Theese imports forces decorator @AppRoutes render routes, this is not desired, if youre able to fix it, please do :)
-import './routes/AuthRoutes.js';
-import './routes/OfferRoutes.js';
+import "./routes/AuthRoutes.js";
 
 @AppRoutes
 export default class App {
@@ -19,23 +17,18 @@ export default class App {
 
   constructor(port = 8080) {
     this.app = express();
-
     this.app.use(cors({ origin: "*" }));
     this.app.use(express.json());
-
     this.port = port;
-
     this.setupRoutes();
   }
 
   setupRoutes() {
-
-    this.app.get('/', (req: any, res: any) => {
-      res.json({ message: 'Hello World' });
+    this.app.get("/", (req: any, res: any) => {
+      res.json({ message: "Hello World" });
     });
 
-    this.app.use('/matches', matchRoutes);
-
+    this.app.use("/matches", matchRoutes);
   }
 
   start() {
