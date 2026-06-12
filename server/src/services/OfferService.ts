@@ -36,5 +36,14 @@ export class OfferService {
             return updatedOffer;
         }
 
+    async deleteOffer(id:string){
+        const offerId = await this.offerRepository.getById(id)
+        if (!offerId) throw new Error(MessagesEnum.ERROR_USER_NOT_FOUND)
+        
+        const deletedOffer = await this.offerRepository.delete(id)
+        return deletedOffer 
+    }
+
+    
     
 }

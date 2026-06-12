@@ -1,35 +1,61 @@
-import {type Offer, PrismaClient } from "@prisma/client";
+import { type Offer, PrismaClient } from "@prisma/client";
+import {CreateOfferDTO,UpdateOfferDTO} from "../DTOs/offerDTO";
 
-export default class OfferRepository{
-    private prisma  = new PrismaClient()
+export default class OfferRepository {
+  private prisma = new PrismaClient();
 
-    async create(data: Offer) : Promise<Offer | null>{
-        return await this.prisma.offer.create({ data })
-    }
+  async create(data: CreateOfferDTO) {
+    const { media, ...offerData } = data;
 
-    async getById(id: string) : Promise<Offer | null>{
-        return await this.prisma.offer.findUnique({
-            where: {id}
-        })
-    }
+    return await this.prisma.offer.create({
+      data: {
+        ...offerData,
+        media: media ? { create: media } : undefined,
+      },
 
-    async getMany() : Promise<Offer[] | null>{
-        return await this.prisma.offer.findMany({
-            include: {user: true},
-            orderBy: {createdAt: "desc"}
-        })
-    }
+      include: {
+        media: true,
+      },
+    });
+  }
 
-    async update(id : string, data : Partial<Offer>){
-        return await this.prisma.offer.update({
-            where: {id},
-            data,
-        })
-    }
+  async getById(id: string): Promise<Offer | null> {
+    return await this.prisma.offer.findUnique({
+      where: { id },
+    });
+  }
 
-    async delete(id: string) {
-        return await this.prisma.offer.delete({
-            where : {id}
-        })
-    }
+  async getMany(): Promise<Offer[]> {
+    return await this.prisma.offer.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async update(id: string, data: UpdateOfferDTO) {
+    const { media, ...offerData } = data;
+
+    return await this.prisma.offer.update({
+      where: { id },
+
+      data: {
+        ...offerData,
+        ...(media && {
+          media: {
+            deleteMany: {},
+            create: media,
+          },
+        }),
+      },
+
+      include: {
+        media: true,
+      },
+    });
+  }
+
+  async delete(id: string) {
+    return await this.prisma.offer.delete({
+      where: { id },
+    });
+  }
 }
