@@ -3,14 +3,12 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 import { AppRoutes } from "./decorator/appRoutesDecorator.js";
-import { matchRoutes } from "./routes/match.routes.js";
+import { matchRoutes } from "./routes/MatchRoutes.js";
 
 dotenv.config();
 
-// Theese imports forces decorator @AppRoutes render routes,
-// this is not desired, if youre able to fix it, please do :)
+// Theese imports forces decorator @AppRoutes render routes, this is not desired, if youre able to fix it, please do :)
 import "./routes/AuthRoutes.js";
-import "./routes/PreferenceRoutes.js";
 
 @AppRoutes
 export default class App {

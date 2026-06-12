@@ -7,7 +7,7 @@ import { LoginSchema, RegisterSchema, UpdateUserSchema } from "../schemas/AuthSc
 
 @Route("/auth")
 export class AuthRoutes {
-    public router = Router()
+    public router: Router = Router()
     private authController = new AuthController();
 
     constructor () {
