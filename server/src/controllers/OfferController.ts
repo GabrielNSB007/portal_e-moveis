@@ -1,79 +1,107 @@
-import { type Offer } from "@prisma/client";
-import { type Request, type Response } from "express";
-import OfferRepository from "../repositories/OfferRepository";
-import { MessagesEnum } from "../shared/enums/messagesEnum";
-import { HttpStatusEnum } from "../shared/enums/httpStatusEnum.js";
-import { OfferService } from "../services/OfferService";
+import { Request, Response } from "express";
 
-interface UpdateOfferParams {
-    id : string //trocar TODOS os interfaces de lugar para uma pasta de DTOs ou types
-}
+import {
+  CreateOfferBody,
+  ListOffersQuery,
+  UpdateOfferBody,
+} from "../schemas/OfferSchema.js";
+import { AppError } from "../errors/AppError.js";
+import { OfferService } from "../services/OfferService.js";
 
-interface DeleteOfferParams extends UpdateOfferParams{}
-interface ReadOfferParams extends UpdateOfferParams{}
+export class OfferController {
+  constructor(
+    private readonly offerService: OfferService = new OfferService(),
+  ) {}
 
+  async create(req: Request<{}, {}, CreateOfferBody>, res: Response) {
+    try {
+      const userId = res.locals.userId;
 
+      const offer = await this.offerService.createOffer({
+        ...req.body,
+        userId,
+      });
 
-export class OfferController{
-    constructor(private offerService : OfferService = new OfferService()){}
+      return res.status(201).json(offer);
+    } catch (err: any) {
+      return this.handleError(err, res);
+    }
+  }
 
-    async create (req : Request<{}, {}, Offer>, res: Response){
-        try {
-            const data = req.body
-            const offerData = await this.offerService.createOffer(data)
-            res.status(HttpStatusEnum.OK).json({offerData}); 
-        } catch (err: any) {
-            res.status(HttpStatusEnum.INVALID_CREDENTIALS).send({ error: err.message });
-        }
+  async readById(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const offer = await this.offerService.findById(id);
+
+      return res.status(200).json(offer);
+    } catch (err: any) {
+      return this.handleError(err, res);
+    }
+  }
+
+  async readAll(req: Request, res: Response) {
+    try {
+      const query = req.query as unknown as ListOffersQuery;
+
+      const result = await this.offerService.findAll({
+        city: query.city,
+        state: query.state,
+        status: query.status,
+        propertyType: query.propertyType,
+        minPrice: query.minPrice,
+        maxPrice: query.maxPrice,
+        page: query.page ?? 1,
+        limit: query.limit ?? 20,
+      });
+
+      return res.status(200).json(result);
+    } catch (err: any) {
+      return this.handleError(err, res);
+    }
+  }
+
+  async update(
+    req: Request<{ id: string }, {}, UpdateOfferBody>,
+    res: Response,
+  ) {
+    try {
+      const userId = res.locals.userId;
+      const { id } = req.params;
+
+      const offer = await this.offerService.updateOffer(userId, id, req.body);
+
+      return res.status(200).json(offer);
+    } catch (err: any) {
+      return this.handleError(err, res);
+    }
+  }
+
+  async delete(req: Request, res: Response) {
+    try {
+      const userId = res.locals.userId;
+      const { id } = req.params;
+
+      const offer = await this.offerService.deleteOffer(userId, id);
+
+      return res.status(200).json({
+        message: "Oferta removida com sucesso",
+        offer,
+      });
+    } catch (err: any) {
+      return this.handleError(err, res);
+    }
+  }
+
+  private handleError(err: any, res: Response) {
+    if (err instanceof AppError) {
+      return res.status(err.statusCode).json({
+        error: err.message,
+      });
     }
 
-    async readById (req : Request<ReadOfferParams>, res : Response){
-        
-        try {
-            const id = req.params.id
-   
-            const data = await this.offerService.findById(id)
-            res.status(HttpStatusEnum.OK).json({data})
-        } catch (err : any) {
-            res.status(HttpStatusEnum.INTERNAL_SERVER_ERROR).send({error: err.message})
-        }
-    }
-
-    async readAll (req : Request, res : Response){
-        
-        try {
-
-            const data = await this.offerService.findAll()
-            res.status(HttpStatusEnum.OK).json({data})
-        } catch (err : any) {
-            res.status(HttpStatusEnum.INTERNAL_SERVER_ERROR).send({error: err.message})
-        }
-    }
-
-    async update (req : Request<UpdateOfferParams, Partial<Offer>>, res : Response){
-        
-        try {
-            
-            const id = req.params.id
-            const data = req.body
-
-            const updatedData = await this.offerService.updateOffer(id, data)
-            res.status(HttpStatusEnum.OK).json(updatedData)
-        } catch (err : any) {
-            res.status(HttpStatusEnum.BAD_REQUEST).send({error: err.message})
-        }
-    }
-
-    async delete (req : Request<DeleteOfferParams>, res: Response){
-
-        try {
-            
-            const id = req.params.id
-            const deletedData = await this.offerService.deleteOffer(id)
-            res.status(HttpStatusEnum.OK).json(deletedData)
-        } catch (err : any) {
-            res.status(HttpStatusEnum.BAD_REQUEST).send({error: err.message})
-        }
-    }
-
+    return res.status(500).json({
+      error: err.message || "Erro interno no servidor",
+    });
+  }
 }
