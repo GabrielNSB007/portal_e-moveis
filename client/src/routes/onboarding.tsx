@@ -387,7 +387,25 @@ function Counter({ label, value, setValue }: { label: string; value: number; set
           onClick={() => setValue(Math.max(1, value - 1))}
           className="grid h-9 w-9 place-items-center rounded-full bg-secondary text-lg font-bold transition-colors hover:bg-secondary/80 md:h-10 md:w-10"
         >−</button>
-        <span className="w-6 text-center font-bold md:text-lg">{value}</span>
+        
+        <input
+          type="number"
+          /* Mostra vazio temporariamente se o usuário apagar tudo para digitar outro número */
+          value={value === 0 ? "" : value}
+          onChange={(e) => {
+            if (e.target.value === "") {
+              setValue(0);
+            } else {
+              setValue(parseInt(e.target.value, 10) || 0);
+            }
+          }}
+          onBlur={() => {
+            /* Validação: Se ele clicar fora e estiver vazio ou menor que 1, volta para 1 */
+            if (value < 1) setValue(1);
+          }}
+          className="w-10 bg-transparent text-center font-bold outline-none transition-all focus:rounded-md focus:ring-2 focus:ring-primary/50 md:text-lg [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+        />
+
         <button
           onClick={() => setValue(value + 1)}
           className="grid h-9 w-9 place-items-center rounded-full bg-primary text-lg font-bold text-primary-foreground transition-transform hover:scale-105 active:scale-95 md:h-10 md:w-10"
