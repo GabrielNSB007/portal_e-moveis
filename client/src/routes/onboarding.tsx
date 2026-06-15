@@ -152,13 +152,13 @@ function Onboarding() {
               )}
 
               {step === 3 && (
-                <Step title="Qual o seu orçamento?" subtitle="Você pode ajustar depois.">
+                <Step title="Qual o seu orçamento?" subtitle="Você pode ajustar arrastando ou digitando.">
                   <div className="rounded-3xl bg-card p-6 shadow-soft md:p-8">
-                    <div className="text-center text-2xl font-bold text-primary md:text-3xl">
-                      {fmtCurrency(budget[0])} – {fmtCurrency(budget[1])}
-                    </div>
+                    
+                    {/* SLIDER COM BOLINHAS COLORIDAS */}
+                    {/* Usamos seletores CSS no Tailwind para pintar a primeira bolinha de Azul e a segunda de Roxo */}
                     <Slider
-                      className="mt-8 cursor-grab active:cursor-grabbing"
+                      className="mt-4 cursor-grab active:cursor-grabbing [&_[role=slider]:first-of-type]:bg-blue-500 [&_[role=slider]:first-of-type]:border-blue-500 [&_[role=slider]:last-of-type]:bg-purple-500 [&_[role=slider]:last-of-type]:border-purple-500"
                       value={budget}
                       onValueChange={setBudget}
                       min={100000}
@@ -169,6 +169,60 @@ function Onboarding() {
                       <span>{fmtCurrency(100000)}</span>
                       <span>{fmtCurrency(5000000)}</span>
                     </div>
+
+                    {/* CAMPOS DE DIGITAÇÃO MIN E MAX */}
+                    <div className="mt-8 flex items-center gap-4">
+                      {/* Input Mínimo (Azul) */}
+                      <div className="flex-1">
+                        <label className="mb-2 block text-xs font-semibold text-muted-foreground">Mínimo</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
+                          <input
+                            type="number"
+                            className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-3 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            value={budget[0]}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setBudget([val, budget[1]]);
+                            }}
+                            onBlur={(e) => {
+                              // Validação: Garante que o mínimo não seja menor que 100k nem maior que o máximo atual
+                              let val = Number(e.target.value);
+                              if (val < 100000) val = 100000;
+                              if (val > budget[1]) val = budget[1] - 50000; 
+                              setBudget([val, budget[1]]);
+                            }}
+                          />
+                        </div>
+                      </div>
+                      
+                      <span className="mt-6 text-muted-foreground font-bold">-</span>
+
+                      {/* Input Máximo (Roxo) */}
+                      <div className="flex-1">
+                        <label className="mb-2 block text-xs font-semibold text-muted-foreground">Máximo</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
+                          <input
+                            type="number"
+                            className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-3 text-sm transition-colors focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                            value={budget[1]}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setBudget([budget[0], val]);
+                            }}
+                            onBlur={(e) => {
+                              // Validação: Garante que o máximo não passe de 5M nem seja menor que o mínimo atual
+                              let val = Number(e.target.value);
+                              if (val > 5000000) val = 5000000;
+                              if (val < budget[0]) val = budget[0] + 50000;
+                              setBudget([budget[0], val]);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
                 </Step>
               )}
