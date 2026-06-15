@@ -1,68 +1,76 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
+import type { Router as ExpressRouter } from "express";
+
+import { ProposalController } from "../controllers/ProposalController.js";
 import { Route } from "../decorator/routeDecorator.js";
 import { authenticate } from "../middleware/authenticate.js";
 import { validate } from "../middleware/validate.js";
-import { ProposalController } from "../controllers/ProposalController.js";
+
 import {
   CreateProposalSchema,
   OfferIdParamSchema,
   ProposalIdParamSchema,
   UpdateProposalSchema,
-  CreateProposalBody,
-  UpdateProposalBody,
-  OfferIdParams,
-  ProposalIdParams,
+  UpdateProposalStatusSchema,
 } from "../schemas/ProposalSchema.js";
 
 @Route("/proposals")
 export class ProposalRoutes {
-  public router = Router();
-
-  private readonly proposalController = new ProposalController();
+  public readonly router: ExpressRouter;
+  private readonly proposalController: ProposalController;
 
   constructor() {
+    this.router = Router();
+    this.proposalController = new ProposalController();
+
     this.router.post(
       "/",
       authenticate,
       validate(CreateProposalSchema),
-      (req: Request<{}, {}, CreateProposalBody>, res: Response) =>
-        this.proposalController.create(req, res),
+      (req, res) => this.proposalController.create(req, res),
     );
 
-    this.router.get("/", authenticate, (req: Request, res: Response) =>
+    this.router.get("/", authenticate, (req, res) =>
       this.proposalController.listMine(req, res),
+    );
+
+    this.router.get("/received", authenticate, (req, res) =>
+      this.proposalController.listReceived(req, res),
     );
 
     this.router.get(
       "/offer/:offerId",
       authenticate,
       validate(OfferIdParamSchema),
-      (req: Request<OfferIdParams>, res: Response) =>
-        this.proposalController.listByOffer(req, res),
+      (req, res) => this.proposalController.listByOffer(req, res),
     );
 
     this.router.get(
       "/:id",
       authenticate,
       validate(ProposalIdParamSchema),
-      (req: Request<ProposalIdParams>, res: Response) =>
-        this.proposalController.findById(req, res),
+      (req, res) => this.proposalController.findById(req, res),
     );
 
-    this.router.put(
+    this.router.patch(
       "/:id",
       authenticate,
       validate(UpdateProposalSchema),
-      (req: Request<ProposalIdParams, {}, UpdateProposalBody>, res: Response) =>
-        this.proposalController.update(req, res),
+      (req, res) => this.proposalController.update(req, res),
+    );
+
+    this.router.patch(
+      "/:id/status",
+      authenticate,
+      validate(UpdateProposalStatusSchema),
+      (req, res) => this.proposalController.updateStatus(req, res),
     );
 
     this.router.delete(
       "/:id",
       authenticate,
       validate(ProposalIdParamSchema),
-      (req: Request<ProposalIdParams>, res: Response) =>
-        this.proposalController.delete(req, res),
+      (req, res) => this.proposalController.cancel(req, res),
     );
   }
 }

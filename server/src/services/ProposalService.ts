@@ -1,16 +1,12 @@
-import { OfferStatus } from "@prisma/client";
-import { CreateProposalDTO, UpdateProposalDTO } from "../DTOs/proposalDTO.js";
-import { ProposalRepository } from "../repositories/ProposalRepository.js";
+import { OfferStatus, ProposalStatus } from "@prisma/client";
 
-export const ProposalServiceError = {
-  OFFER_NOT_FOUND: "Imóvel não encontrado",
-  PROPOSAL_NOT_FOUND: "Proposta não encontrada",
-  FORBIDDEN: "Você não tem permissão para acessar esta proposta",
-  OWN_OFFER: "Você não pode enviar proposta para seu próprio imóvel",
-  OFFER_NOT_ACTIVE: "Só é possível enviar proposta para imóveis ativos",
-  PROPOSAL_ALREADY_EXISTS: "Você já enviou uma proposta para este imóvel",
-  NO_UPDATE_FIELDS: "Informe ao menos um campo para atualizar",
-} as const;
+import {
+  CreateProposalDTO,
+  UpdateProposalDTO,
+  UpdateProposalStatusDTO,
+} from "../DTOs/proposalDTO.js";
+import { AppError } from "../errors/AppError.js";
+import { ProposalRepository } from "../repositories/ProposalRepository.js";
 
 export class ProposalService {
   constructor(private readonly proposalRepository = new ProposalRepository()) {}
@@ -19,15 +15,21 @@ export class ProposalService {
     const offer = await this.proposalRepository.findOfferById(data.offerId);
 
     if (!offer) {
-      throw new Error(ProposalServiceError.OFFER_NOT_FOUND);
+      throw new AppError("Oferta não encontrada", 404);
     }
 
     if (offer.userId === data.buyerId) {
-      throw new Error(ProposalServiceError.OWN_OFFER);
+      throw new AppError(
+        "Você não pode enviar proposta para seu próprio imóvel",
+        422,
+      );
     }
 
     if (offer.status !== OfferStatus.ATIVA) {
-      throw new Error(ProposalServiceError.OFFER_NOT_ACTIVE);
+      throw new AppError(
+        "Só é possível enviar proposta para imóveis ativos",
+        422,
+      );
     }
 
     const existingProposal =
@@ -37,25 +39,39 @@ export class ProposalService {
       );
 
     if (existingProposal) {
-      throw new Error(ProposalServiceError.PROPOSAL_ALREADY_EXISTS);
+      throw new AppError("Você já enviou uma proposta para este imóvel", 409);
     }
 
-    return this.proposalRepository.create(data);
+    const proposal = await this.proposalRepository.create(data);
+
+    await this.proposalRepository.markRelatedMatchesAsProposalSent(
+      data.offerId,
+      data.buyerId,
+    );
+
+    return proposal;
   }
 
   async listMine(buyerId: string) {
     return this.proposalRepository.findByBuyerId(buyerId);
   }
 
+  async listReceived(sellerId: string) {
+    return this.proposalRepository.findReceivedBySellerId(sellerId);
+  }
+
   async listByOffer(offerId: string, requesterId: string) {
     const offer = await this.proposalRepository.findOfferById(offerId);
 
     if (!offer) {
-      throw new Error(ProposalServiceError.OFFER_NOT_FOUND);
+      throw new AppError("Oferta não encontrada", 404);
     }
 
     if (offer.userId !== requesterId) {
-      throw new Error(ProposalServiceError.FORBIDDEN);
+      throw new AppError(
+        "Você não tem permissão para acessar propostas desta oferta",
+        403,
+      );
     }
 
     return this.proposalRepository.findByOfferId(offerId);
@@ -65,48 +81,86 @@ export class ProposalService {
     const proposal = await this.proposalRepository.findById(id);
 
     if (!proposal) {
-      throw new Error(ProposalServiceError.PROPOSAL_NOT_FOUND);
+      throw new AppError("Proposta não encontrada", 404);
     }
 
     const isBuyer = proposal.buyerId === requesterId;
     const isOfferOwner = proposal.offer.userId === requesterId;
 
     if (!isBuyer && !isOfferOwner) {
-      throw new Error(ProposalServiceError.FORBIDDEN);
+      throw new AppError(
+        "Você não tem permissão para acessar esta proposta",
+        403,
+      );
     }
 
     return proposal;
   }
 
   async update(id: string, requesterId: string, data: UpdateProposalDTO) {
-    if (Object.keys(data).length === 0) {
-      throw new Error(ProposalServiceError.NO_UPDATE_FIELDS);
-    }
-
     const proposal = await this.proposalRepository.findById(id);
 
     if (!proposal) {
-      throw new Error(ProposalServiceError.PROPOSAL_NOT_FOUND);
+      throw new AppError("Proposta não encontrada", 404);
     }
 
     if (proposal.buyerId !== requesterId) {
-      throw new Error(ProposalServiceError.FORBIDDEN);
+      throw new AppError("Apenas o comprador pode editar esta proposta", 403);
+    }
+
+    if (proposal.status !== ProposalStatus.PENDENTE) {
+      throw new AppError("Só é possível editar proposta pendente", 422);
     }
 
     return this.proposalRepository.update(id, data);
   }
 
-  async delete(id: string, requesterId: string) {
+  async updateStatus(
+    id: string,
+    requesterId: string,
+    data: UpdateProposalStatusDTO,
+  ) {
     const proposal = await this.proposalRepository.findById(id);
 
     if (!proposal) {
-      throw new Error(ProposalServiceError.PROPOSAL_NOT_FOUND);
+      throw new AppError("Proposta não encontrada", 404);
     }
 
-    if (proposal.buyerId !== requesterId) {
-      throw new Error(ProposalServiceError.FORBIDDEN);
+    if (proposal.status !== ProposalStatus.PENDENTE) {
+      throw new AppError(
+        "Só é possível alterar status de proposta pendente",
+        422,
+      );
     }
 
-    return this.proposalRepository.delete(id);
+    const isBuyer = proposal.buyerId === requesterId;
+    const isOfferOwner = proposal.offer.userId === requesterId;
+
+    if (!isBuyer && !isOfferOwner) {
+      throw new AppError(
+        "Você não tem permissão para alterar esta proposta",
+        403,
+      );
+    }
+
+    if (isBuyer && data.status !== ProposalStatus.CANCELADA) {
+      throw new AppError("Comprador só pode cancelar a própria proposta", 422);
+    }
+
+    if (
+      isOfferOwner &&
+      data.status !== ProposalStatus.ACEITA &&
+      data.status !== ProposalStatus.RECUSADA
+    ) {
+      throw new AppError("Vendedor só pode aceitar ou recusar proposta", 422);
+    }
+
+    return this.proposalRepository.updateStatus(id, data);
+  }
+
+  async cancel(id: string, requesterId: string) {
+    return this.updateStatus(id, requesterId, {
+      status: ProposalStatus.CANCELADA,
+    });
   }
 }
