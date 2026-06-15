@@ -4,7 +4,7 @@ import type {
     UpdateUser,
     ReadUser,
     AuthResponse,
-} from "@/types/userTypes";
+} from "@/types/user";
 import api from "./api";
 
 const TOKEN_KEY = "emoveis-token";
