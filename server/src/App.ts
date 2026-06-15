@@ -3,12 +3,13 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 import { AppRoutes } from "./decorator/appRoutesDecorator.js";
-import { matchRoutes } from "./routes/MatchRoutes.js";
 
 dotenv.config();
 
 // Theese imports forces decorator @AppRoutes render routes, this is not desired, if youre able to fix it, please do :)
 import "./routes/AuthRoutes.js";
+import "./routes/PreferenceRoutes.js";
+import "./routes/MatchRoutes.js";
 
 @AppRoutes
 export default class App {
@@ -27,8 +28,6 @@ export default class App {
     this.app.get("/", (req: any, res: any) => {
       res.json({ message: "Hello World" });
     });
-
-    this.app.use("/matches", matchRoutes);
   }
 
   start() {
