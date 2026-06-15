@@ -1,4 +1,4 @@
-import logo from "@/assets/logo.svg";
+import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
 
 export function Logo({ className, withWordmark = false }: { className?: string; withWordmark?: boolean }) {
