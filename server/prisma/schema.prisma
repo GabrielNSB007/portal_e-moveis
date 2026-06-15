@@ -35,6 +35,13 @@ enum MatchStatus {
   FEITO
 }
 
+enum ProposalStatus {
+  PENDENTE
+  ACEITA
+  RECUSADA
+  CANCELADA
+}
+
 enum MediaType {
   FOTO
   VIDEO
@@ -58,7 +65,6 @@ model User {
   email     String   @unique
   password  String
   role      UserRole @default(CLIENTE)
-
   phone     String?
 
   offers        Offer[]
@@ -67,29 +73,26 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
 }
 
 model Offer {
-  id          String      @id @default(uuid())
-  title       String
-  description String?
-
-  price       Decimal     @db.Decimal(12, 2)
-  areaM2      Float
-  bedrooms    Int
-  bathrooms   Int
+  id           String       @id @default(uuid())
+  title        String
+  description  String?
+  price        Decimal      @db.Decimal(12, 2)
+  areaM2       Float
+  bedrooms     Int
+  bathrooms    Int
   parkingSpots Int
-
   propertyType PropertyType
-  status       OfferStatus @default(ATIVA)
+  status       OfferStatus  @default(ATIVA)
 
   neighborhood String
   city         String
   state        String
   address      String?
 
-  amenities    Amenity[]
+  amenities Amenity[]
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -113,15 +116,13 @@ model OfferMedia {
   type    MediaType
 
   offerId String
-  offer   Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offer   Offer     @relation(fields: [offerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
-
 }
 
 model Preference {
-  id String @id @default(uuid())
-
+  id     String @id @default(uuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -137,11 +138,10 @@ model Preference {
   minBathrooms    Int?
   minParkingSpots Int?
 
-  propertyTypes PropertyType[]
-  neighborhoods String[]
-  city          String
-  state         String
-
+  propertyTypes   PropertyType[]
+  neighborhoods   String[]
+  city            String
+  state           String
   desiredAmenities Amenity[]
 
   isActive Boolean @default(true)
@@ -158,7 +158,7 @@ model Match {
   id String @id @default(uuid())
 
   offerId String
-  offer   Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
 
   preferenceId String
   preference   Preference @relation(fields: [preferenceId], references: [id], onDelete: Cascade)
@@ -177,14 +177,20 @@ model Proposal {
   id String @id @default(uuid())
 
   offerId String
-  offer   Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
 
   buyerId String
-  buyer   User @relation("BuyerProposals", fields: [buyerId], references: [id], onDelete: Cascade)
+  buyer   User   @relation("BuyerProposals", fields: [buyerId], references: [id], onDelete: Cascade)
 
   message String?
   value   Decimal? @db.Decimal(12, 2)
+  status  ProposalStatus @default(PENDENTE)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@unique([offerId, buyerId])
+  @@index([buyerId])
+  @@index([offerId])
+  @@index([status])
 }
