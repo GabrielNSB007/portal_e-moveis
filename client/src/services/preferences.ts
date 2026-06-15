@@ -1,27 +1,50 @@
-import type { CreatePreference, UpdatePreference, ReadDeletePreference } from "@/types/preferencesTypes";
-import api from "./api"
+import type {
+  CreatePreferenceFormData,
+  UpdatePreferenceFormData,
+  ReadDeletePreference,
+} from "@/types/preferences.js";
+import api from "./api";
 
-export const createPreference = async (preferencesData: CreatePreference) => {
-    return api.post('/preferences', preferencesData)
-}
+export const createPreference = async (preferencesData: CreatePreferenceFormData) => {
+  const response = await api.post<ReadDeletePreference>(
+    "/preferences",
+    preferencesData,
+  );
+  return response.data;
+};
 
-export const updatePreference = async (id : string, preferencesData: UpdatePreference) => {
-    return api.patch(`/preferences/${id}`, preferencesData)
-}
+export const updatePreference = async (
+  id: string,
+  preferencesData: UpdatePreferenceFormData,
+) => {
+  const response = await api.patch<ReadDeletePreference>(
+    `/preferences/${id}`,
+    preferencesData,
+  );
+  return response.data;
+};
 
-export const updatePreferenceActive = async (id : string, preferencesData: UpdatePreference) => {
-    return api.patch(`/preferences/activate/${id}`, preferencesData)
-}
+export const updatePreferenceActive = async (
+  id: string,
+  preferencesData: Pick<UpdatePreferenceFormData, "isActive">,
+) => {
+  const response = await api.patch<ReadDeletePreference>(
+    `/preferences/activate/${id}`,
+    preferencesData,
+  );
+  return response.data;
+};
 
-export const findPreferenceById = async (id : string) => {
-    return api.get<ReadDeletePreference>(`/preferences/${id}`)
-}
+export const findPreferenceById = async (id: string) => {
+  const response = await api.get<ReadDeletePreference>(`/preferences/${id}`);
+  return response.data;
+};
 
 export const findManyPreferences = async () => {
-    return api.get<ReadDeletePreference[]>(`/preferences/`)
-}
+  const response = await api.get<ReadDeletePreference[]>("/preferences");
+  return response.data;
+};
 
-
-export const deleteOffer = async (id : string) => {
-    return api.delete(`/preferences/${id}`)
-}
+export const deletePreference = async (id: string) => {
+  await api.delete(`/preferences/${id}`);
+};

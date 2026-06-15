@@ -129,3 +129,8 @@ export type CreatePreferenceFormData =
 
 export type UpdatePreferenceFormData =
   z.infer<typeof updatePreferenceSchema>;
+
+export interface ReadDeletePreference
+  extends Partial<UpdatePreferenceFormData> {
+  id: string;
+}
