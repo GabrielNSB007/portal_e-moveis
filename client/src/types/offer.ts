@@ -80,3 +80,8 @@ export const updateOfferSchema = createOfferSchema.partial();
 export type CreateOfferFormData = z.infer<typeof createOfferSchema>;
 export type UpdateOfferFormData = z.infer<typeof updateOfferSchema>;
 export type OfferMediaFormData = z.infer<typeof offerMediaSchema>;
+
+export interface ReadDeleteOffer
+  extends Partial<UpdateOfferFormData> {
+  id: string;
+}

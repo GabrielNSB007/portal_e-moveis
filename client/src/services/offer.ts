@@ -1,11 +1,11 @@
-import type { CreateOffer, UpdateOffer, ReadDeleteOffer } from "@/types/offerTypes";
+import type { CreateOfferFormData, UpdateOfferFormData, ReadDeleteOffer } from "@/types/offer";
 import api from "./api"
 
-export const createOffer = async (offerData: CreateOffer) => {
+export const createOffer = async (offerData: CreateOfferFormData) => {
     return api.post('/offers', offerData)
 }
 
-export const updateOffer = async (id : string, offerData: UpdateOffer) => {
+export const updateOffer = async (id : string, offerData: UpdateOfferFormData) => {
     return api.patch(`/offers/${id}`, offerData)
 }
 

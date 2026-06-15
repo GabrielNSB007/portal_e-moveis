@@ -1,46 +1,70 @@
-import { type Offer } from "@prisma/client";
-import {CreateOfferDTO,UpdateOfferDTO} from "../DTOs/offerDTO";
-import OfferRepository from "../repositories/OfferRepository";
-import { MessagesEnum } from "../shared/enums/messagesEnum";
+import { CreateOfferDTO, UpdateOfferDTO } from "../DTOs/offerDTO.js";
+import { AppError } from "../errors/AppError.js";
+import OfferRepository from "../repositories/OfferRepository.js";
+
+type ListOffersInput = {
+  city?: string;
+  state?: string;
+  status?: string;
+  propertyType?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  page?: number;
+  limit?: number;
+};
 
 export class OfferService {
-    private offerRepository = new OfferRepository()
+  constructor(private readonly offerRepository = new OfferRepository()) {}
 
-    async createOffer(data: CreateOfferDTO) : Promise<Offer | null>{
-        const offer = await this.offerRepository.create(data)
-        return offer
+  async createOffer(data: CreateOfferDTO) {
+    return this.offerRepository.create(data);
+  }
+
+  async findAll(filters: ListOffersInput) {
+    return this.offerRepository.getMany(filters);
+  }
+
+  async findById(id: string) {
+    const offer = await this.offerRepository.getById(id);
+
+    if (!offer) {
+      throw new AppError("Oferta não encontrada", 404);
     }
 
-    async findAll() : Promise<Offer[] | null>{
-        const allOffers = await this.offerRepository.getMany()
-        return allOffers
+    return offer;
+  }
+
+  async updateOffer(userId: string, id: string, data: UpdateOfferDTO) {
+    const offer = await this.offerRepository.getById(id);
+
+    if (!offer) {
+      throw new AppError("Oferta não encontrada", 404);
     }
 
-    async findById(id: string) : Promise<Offer | null>{
-        const offer = await this.offerRepository.getById(id)
-        if(!offer){
-            throw new Error(MessagesEnum.ERROR_USER_NOT_FOUND)
-        }
-
-        return offer
+    if (offer.userId !== userId) {
+      throw new AppError(
+        "Você não tem permissão para alterar esta oferta",
+        403,
+      );
     }
 
-    async updateOffer(id: string, data: UpdateOfferDTO) {
-        const offerId = await this.offerRepository.getById(id);
-        if (!offerId) throw new Error(MessagesEnum.ERROR_USER_NOT_FOUND);
+    return this.offerRepository.update(id, data);
+  }
 
-        const updatedOffer = await this.offerRepository.update(id, data);
-        return updatedOffer;
+  async deleteOffer(userId: string, id: string) {
+    const offer = await this.offerRepository.getById(id);
+
+    if (!offer) {
+      throw new AppError("Oferta não encontrada", 404);
     }
 
-    async deleteOffer(id:string){
-        const offerId = await this.offerRepository.getById(id)
-        if (!offerId) throw new Error(MessagesEnum.ERROR_USER_NOT_FOUND)
-        
-        const deletedOffer = await this.offerRepository.delete(id)
-        return deletedOffer 
+    if (offer.userId !== userId) {
+      throw new AppError(
+        "Você não tem permissão para remover esta oferta",
+        403,
+      );
     }
 
-    
-    
+    return this.offerRepository.delete(id);
+  }
 }
