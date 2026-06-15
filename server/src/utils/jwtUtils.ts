@@ -1,17 +1,31 @@
 import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
 
-dotenv.config();
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET_KEY;
 
-const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY as string;
-const JWT_ACCESS_EXPIRATION = parseInt(process.env.JWT_ACCESS_EXPIRATION as string);
+  if (!secret) {
+    throw new Error("JWT_SECRET_KEY não foi definido no .env");
+  }
+
+  return secret;
+}
+
+function getJwtExpiration() {
+  const expiration = process.env.JWT_ACCESS_EXPIRATION;
+
+  if (!expiration) {
+    return 86400;
+  }
+
+  return Number(expiration);
+}
 
 export function generateAccessToken(userId: string) {
-    return jwt.sign({ id: userId }, JWT_SECRET_KEY, {
-        expiresIn: JWT_ACCESS_EXPIRATION
-    })
+  return jwt.sign({ id: userId }, getJwtSecret(), {
+    expiresIn: getJwtExpiration(),
+  });
 }
 
 export function verifyToken(token: string) {
-    return jwt.verify(token, JWT_SECRET_KEY);
+  return jwt.verify(token, getJwtSecret());
 }
