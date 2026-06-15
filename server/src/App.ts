@@ -1,15 +1,15 @@
+import "dotenv/config";
+
 import express, { type Application } from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 
 import { AppRoutes } from "./decorator/appRoutesDecorator.js";
 
-dotenv.config();
-
-// Theese imports forces decorator @AppRoutes render routes, this is not desired, if youre able to fix it, please do :)
 import "./routes/AuthRoutes.js";
+import "./routes/OfferRoutes.js";
 import "./routes/PreferenceRoutes.js";
 import "./routes/MatchRoutes.js";
+import "./routes/ProposalRoutes.js";
 
 @AppRoutes
 export default class App {

@@ -13,12 +13,13 @@ export class OfferController {
     private readonly offerService: OfferService = new OfferService(),
   ) {}
 
-  async create(req: Request<{}, {}, CreateOfferBody>, res: Response) {
+  async create(req: Request, res: Response) {
     try {
       const userId = res.locals.userId;
+      const body = req.body as CreateOfferBody;
 
       const offer = await this.offerService.createOffer({
-        ...req.body,
+        ...body,
         userId,
       });
 
@@ -61,15 +62,13 @@ export class OfferController {
     }
   }
 
-  async update(
-    req: Request<{ id: string }, {}, UpdateOfferBody>,
-    res: Response,
-  ) {
+  async update(req: Request, res: Response) {
     try {
       const userId = res.locals.userId;
       const { id } = req.params;
+      const body = req.body as UpdateOfferBody;
 
-      const offer = await this.offerService.updateOffer(userId, id, req.body);
+      const offer = await this.offerService.updateOffer(userId, id, body);
 
       return res.status(200).json(offer);
     } catch (err: any) {
