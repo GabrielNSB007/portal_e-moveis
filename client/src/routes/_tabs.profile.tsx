@@ -4,10 +4,8 @@ import {
   Bath,
   BedDouble,
   Bell,
-  Building2,
   Car,
   Check,
-  ChevronRight,
   Coins,
   CreditCard,
   Eye,
@@ -32,6 +30,7 @@ import { SectionHeader } from "@/components/emoveis/SectionHeader";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/hooks/use-theme";
+import { clearAuthToken, clearLegacyOnboardingFlag, clearSessionEmail } from "@/lib/auth-session";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -52,9 +51,11 @@ function Profile() {
   ];
 
   const logout = () => {
-    localStorage.removeItem("emoveis-onboarded");
-    toast.success("Até logo!");
-    navigate({ to: "/onboarding" });
+    clearAuthToken();
+    clearSessionEmail();
+    clearLegacyOnboardingFlag();
+    toast.success("Ate logo!");
+    navigate({ to: "/auth" });
   };
 
   return (
@@ -202,13 +203,6 @@ function Profile() {
                     onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
                   />
                 }
-              />
-              <Row
-                icon={Building2}
-                label="Área do Anunciante"
-                right={<ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                onClick={() => navigate({ to: "/agent" })}
-                last
               />
             </div>
             

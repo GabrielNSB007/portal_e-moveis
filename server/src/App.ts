@@ -37,5 +37,5 @@ export default class App {
   }
 }
 
-const app = new App(8080);
+const app = new App(Number(process.env.PORT ?? 8080));
 app.start();
