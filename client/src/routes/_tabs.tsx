@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useState } from "react";
-import { Building2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, Building2, ChevronLeft, ChevronRight } from "lucide-react";
 import { BottomNavigation, tabs } from "@/components/emoveis/BottomNavigation";
 import { Logo } from "@/components/emoveis/Logo";
 import { cn } from "@/lib/utils";
@@ -94,16 +94,21 @@ function DesktopNavigation({
       <Link
         to="/agent"
         className={cn(
-          "block overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-4 transition-all duration-300 hover:border-primary/35 hover:bg-primary/10",
+          "group block overflow-hidden rounded-2xl bg-primary p-4 text-primary-foreground shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:shadow-float active:translate-y-0",
           isCollapsed ? "h-0 scale-95 border-0 p-0 opacity-0" : "h-auto opacity-100",
         )}
       >
-        <div className="flex items-center gap-2 whitespace-nowrap text-xs font-semibold text-primary">
-          <Building2 className="h-3.5 w-3.5" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-foreground/15">
+            <Building2 className="h-5 w-5" />
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </div>
+        <div className="mt-3 whitespace-nowrap text-sm font-bold">
           Area do anunciante
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          Anuncie imoveis sem misturar com sua busca de comprador.
+        <p className="mt-1 text-xs leading-relaxed text-primary-foreground/80">
+          Criar e gerenciar anuncios
         </p>
       </Link>
     </aside>

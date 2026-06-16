@@ -140,7 +140,7 @@ function Explore() {
 
   return (
     <div className="pb-2 lg:px-8 lg:py-6">
-      <header className="safe-top sticky top-0 z-30 border-b border-border/60 bg-background/95 px-4 pb-3 backdrop-blur-xl lg:static lg:border-0 lg:bg-transparent lg:px-0 lg:pb-6 lg:pt-0">
+      <header className="safe-top sticky top-0 z-30 border-b border-border/60 bg-background/95 px-4 pb-3 backdrop-blur-xl lg:static lg:ml-[352px] lg:border-0 lg:bg-transparent lg:px-0 lg:pb-6 lg:pt-0">
         <div className="flex items-center justify-between lg:hidden">
           <Logo />
           <Link to="/alertas" className="relative grid h-10 w-10 place-items-center rounded-full bg-secondary">

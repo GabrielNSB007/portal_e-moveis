@@ -59,7 +59,7 @@ function Profile() {
   };
 
   return (
-    <div className="mx-auto pb-24 lg:max-w-[1200px] lg:px-8 lg:py-8 lg:pb-12">
+    <div className="mx-auto pb-20 lg:max-w-[1200px] lg:px-8 lg:py-8 lg:pb-8">
       
       {/* HEADER / HERO SECTION */}
       <div className="relative bg-gradient-hero px-5 pb-20 pt-6 safe-top lg:rounded-[2.5rem] lg:border lg:border-border/50 lg:p-10 lg:pb-24 lg:shadow-xl">
@@ -125,10 +125,10 @@ function Profile() {
       </div>
 
       {/* MAIN CONTENT GRID */}
-      <div className="mt-8 grid gap-8 px-5 lg:mt-12 lg:grid-cols-[1fr_360px] lg:px-0 xl:grid-cols-[1fr_400px] xl:gap-12">
+      <div className="mt-8 grid gap-7 px-5 lg:mt-10 lg:grid-cols-[1fr_360px] lg:px-0 xl:grid-cols-[1fr_400px] xl:gap-8">
         
         {/* COLUNA ESQUERDA (Principal) */}
-        <div className="space-y-10">
+        <div className="space-y-8">
           <Section
             title="Critérios de Matchmaking"
             subtitle="O que buscamos para você"
@@ -183,6 +183,23 @@ function Profile() {
             </div>
           </Section>
 
+          <Section title="Configurações do App">
+            <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+              <Row icon={Bell} label="Notificações push" right={<Switch defaultChecked />} />
+              <Row
+                icon={theme === "dark" ? Moon : Sun}
+                label="Modo noturno"
+                right={
+                  <Switch
+                    checked={theme === "dark"}
+                    onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+                  />
+                }
+              />
+              <Row icon={LogOut} label="Sair da conta" onClick={logout} destructive last />
+            </div>
+          </Section>
+
           {/* Imóveis Salvos Mobile (Oculto no Desktop) */}
           <div className="lg:hidden">
             <SavedProperties />
@@ -190,7 +207,7 @@ function Profile() {
         </div>
 
         {/* COLUNA DIREITA (Sidebar Desktop) */}
-        <aside className="space-y-8">
+        <aside className="space-y-6">
           <Section title="Estilo de busca" subtitle="Como o algoritmo trabalha">
             <div className="space-y-3">
               {SEARCH_STYLES.map((s) => (
@@ -226,26 +243,10 @@ function Profile() {
             <SavedProperties />
           </div>
 
-          <Section title="Configurações do App">
-            <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
-              <Row icon={Bell} label="Notificações push" right={<Switch defaultChecked />} />
-              <Row
-                icon={theme === "dark" ? Moon : Sun}
-                label="Modo noturno"
-                right={
-                  <Switch
-                    checked={theme === "dark"}
-                    onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
-                  />
-                }
-              />
-              <Row icon={LogOut} label="Sair da conta" onClick={logout} destructive last />
-            </div>
-          </Section>
         </aside>
       </div>
 
-      <p className="mt-12 text-center text-xs font-medium text-muted-foreground/50 lg:mt-16">
+      <p className="mt-8 text-center text-xs font-medium text-muted-foreground/50 lg:mt-10">
         Portal E-móveis · v1.0.0 · Matchmaking imobiliário inteligente
       </p>
     </div>
@@ -257,7 +258,7 @@ function SavedProperties() {
     <div>
       <SectionHeader title="Imóveis Salvos" subtitle={`${user.stats.saved} imóveis`} />
       {/* Carrossel no Mobile, Grid no Desktop */}
-      <div className="mt-4 flex gap-4 overflow-x-auto pb-4 no-scrollbar lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0">
+      <div className="mt-3 flex gap-4 overflow-x-auto pb-2 no-scrollbar lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0">
         {properties.slice(0, 4).map((pr) => (
           <div key={pr.id} className="w-[240px] shrink-0 lg:w-auto">
             <PropertyCard property={pr} compact />
@@ -281,7 +282,7 @@ function Section({
 }) {
   return (
     <section>
-      <div className="mb-4 flex items-start justify-between gap-3 lg:mb-5">
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-xl">{title}</h2>
           {subtitle && <p className="mt-1 text-xs text-muted-foreground lg:text-sm">{subtitle}</p>}

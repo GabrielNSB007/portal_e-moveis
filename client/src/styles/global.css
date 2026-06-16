@@ -117,7 +117,6 @@
     -webkit-tap-highlight-color: transparent;
     min-height: 100%;
     overflow-x: hidden;
-    overscroll-behavior: none;
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
     scrollbar-width: thin;
     background: var(--color-background);
@@ -139,8 +138,7 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    overscroll-behavior: none;
-    touch-action: manipulation;
+    touch-action: auto;
   }
   ::-webkit-scrollbar {
     width: 12px;
