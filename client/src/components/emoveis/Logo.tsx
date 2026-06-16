@@ -19,10 +19,6 @@ export function Logo({
       {/* O shrink-0 garante que o ícone nunca seja espremido */}
       <img src={logo} alt="E-moveis" className="h-8 w-8 shrink-0 object-contain" />
       
-      {/* A MÁGICA ACONTECE AQUI: 
-        1. whitespace-nowrap proíbe o texto de quebrar linha
-        2. Quando iconOnly for true, a opacidade e a largura (max-w) zeram suavemente
-      */}
       <span 
         className={cn(
           "text-base font-bold tracking-tight whitespace-nowrap transition-all duration-300",
