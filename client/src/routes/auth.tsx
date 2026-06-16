@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import {
   clearLegacyOnboardingFlag,
   hasCompletedOnboarding,
+  migrateLegacyOnboardingFlag,
   setAuthToken,
   setSessionEmail,
 } from "@/lib/auth-session";
@@ -62,14 +63,15 @@ function Auth() {
 
       setAuthToken(data.token);
       setSessionEmail(form.email);
-      clearLegacyOnboardingFlag();
 
       if (mode === "register") {
+        clearLegacyOnboardingFlag();
         toast.success("Conta criada. Agora vamos montar seu perfil.");
         navigate({ to: "/onboarding" });
         return;
       }
 
+      migrateLegacyOnboardingFlag(form.email);
       const done = hasCompletedOnboarding(form.email);
       toast.success("Bem-vindo de volta.");
       navigate({ to: done ? "/explore" : "/onboarding" });
@@ -82,8 +84,8 @@ function Auth() {
   };
 
   return (
-    <div className="grid min-h-screen bg-background lg:grid-cols-[minmax(0,1fr)_480px]">
-      <section className="relative hidden overflow-hidden bg-gradient-hero lg:block">
+    <div className="grid h-dvh overflow-hidden bg-background lg:grid-cols-[minmax(0,1fr)_480px]">
+      <section className="relative hidden min-h-0 overflow-hidden bg-gradient-hero lg:block">
         <img
           src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1600&q=80"
           alt=""
@@ -107,15 +109,15 @@ function Auth() {
         </div>
       </section>
 
-      <main className="flex min-h-screen items-center justify-center px-5 py-8">
-        <div className="w-full max-w-md">
+      <main className="min-h-0 overflow-y-auto px-5 py-8">
+        <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center">
           <div className="mb-8 lg:hidden">
             <Logo />
           </div>
 
-          <div className="rounded-[2rem] border border-border bg-card p-5 shadow-card sm:p-7">
+          <div className="min-h-[520px] rounded-[2rem] border border-border bg-card p-5 shadow-card sm:p-7">
             <div className="mb-6">
-              <div className="flex rounded-2xl bg-secondary p-1">
+              <div className="grid grid-cols-2 rounded-2xl bg-secondary p-1">
                 <ModeButton active={mode === "login"} onClick={() => setMode("login")}>
                   Entrar
                 </ModeButton>
@@ -126,7 +128,7 @@ function Auth() {
               <h2 className="mt-6 text-2xl font-bold tracking-tight">
                 {mode === "login" ? "Acesse sua conta" : "Crie seu acesso"}
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 min-h-10 text-sm text-muted-foreground">
                 {mode === "login"
                   ? "Use seu email para continuar sua busca."
                   : "Depois disso, montamos seu perfil de busca."}
@@ -134,26 +136,28 @@ function Auth() {
             </div>
 
             <div className="space-y-4">
-              {mode === "register" && (
-                <>
-                  <Field label="Nome" icon={UserRound}>
-                    <Input
-                      value={form.name}
-                      onChange={(event) => update("name", event.target.value)}
-                      placeholder="Seu nome"
-                      className="h-12 rounded-2xl bg-secondary pl-10"
-                    />
-                  </Field>
-                  <Field label="Telefone" icon={Phone}>
-                    <Input
-                      value={form.phone}
-                      onChange={(event) => update("phone", event.target.value)}
-                      placeholder="+55 11 99999-0000"
-                      className="h-12 rounded-2xl bg-secondary pl-10"
-                    />
-                  </Field>
-                </>
-              )}
+              <div className={cn("grid gap-4 transition-all", mode === "register" ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+                <div className="min-h-0 overflow-hidden">
+                  <div className="space-y-4">
+                    <Field label="Nome" icon={UserRound}>
+                      <Input
+                        value={form.name}
+                        onChange={(event) => update("name", event.target.value)}
+                        placeholder="Seu nome"
+                        className="h-12 rounded-2xl bg-secondary pl-10"
+                      />
+                    </Field>
+                    <Field label="Telefone" icon={Phone}>
+                      <Input
+                        value={form.phone}
+                        onChange={(event) => update("phone", event.target.value)}
+                        placeholder="+55 11 99999-0000"
+                        className="h-12 rounded-2xl bg-secondary pl-10"
+                      />
+                    </Field>
+                  </div>
+                </div>
+              </div>
 
               <Field label="Email" icon={Mail}>
                 <Input

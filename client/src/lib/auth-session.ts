@@ -20,4 +20,11 @@ export const markOnboardingComplete = (email = getSessionEmail()) => {
   }
 };
 
+export const migrateLegacyOnboardingFlag = (email = getSessionEmail()) => {
+  if (email && localStorage.getItem("emoveis-onboarded") === "1") {
+    markOnboardingComplete(email);
+  }
+  clearLegacyOnboardingFlag();
+};
+
 export const clearLegacyOnboardingFlag = () => localStorage.removeItem("emoveis-onboarded");

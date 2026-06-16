@@ -129,7 +129,22 @@ function Profile() {
         
         {/* COLUNA ESQUERDA (Principal) */}
         <div className="space-y-10">
-          <Section title="Critérios de Matchmaking" subtitle="O que buscamos para você">
+          <Section
+            title="Critérios de Matchmaking"
+            subtitle="O que buscamos para você"
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => navigate({ to: "/onboarding" })}
+                className="h-9 rounded-2xl px-3 text-xs font-bold"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Editar
+              </Button>
+            }
+          >
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4">
               <PrefCard icon={Coins} label="Faixa de preço" value={`${fmtCurrency(p.budget[0]).replace('R$', '')} - ${fmtCurrency(p.budget[1]).replace('R$', '')}`} />
               <PrefCard icon={MapPin} label="Bairros" value={p.neighborhoods.join(", ")} />
@@ -142,7 +157,22 @@ function Profile() {
             </div>
           </Section>
 
-          <Section title="Dados do Comprador" subtitle="Informações protegidas">
+          <Section
+            title="Dados do Comprador"
+            subtitle="Informações protegidas"
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => toast.info("Edicao dos dados do comprador entra na integracao do perfil.")}
+                className="h-9 rounded-2xl px-3 text-xs font-bold"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Editar
+              </Button>
+            }
+          >
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4">
               <PrefCard icon={Pencil} label="Nome" value={user.name.split(' ')[0]} />
               <PrefCard icon={Mail} label="Email" value="Oculto" hint="Privado" />
@@ -191,6 +221,11 @@ function Profile() {
             </div>
           </Section>
 
+          {/* Imóveis Salvos Desktop */}
+          <div className="hidden lg:block">
+            <SavedProperties />
+          </div>
+
           <Section title="Configurações do App">
             <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
               <Row icon={Bell} label="Notificações push" right={<Switch defaultChecked />} />
@@ -204,18 +239,9 @@ function Profile() {
                   />
                 }
               />
+              <Row icon={LogOut} label="Sair da conta" onClick={logout} destructive last />
             </div>
-            
-            <Button onClick={logout} variant="outline" className="mt-4 h-12 w-full rounded-2xl border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive lg:h-14 lg:text-base">
-              <LogOut className="mr-2 h-5 w-5" />
-              Sair da conta
-            </Button>
           </Section>
-
-          {/* Imóveis Salvos Desktop */}
-          <div className="hidden lg:block">
-            <SavedProperties />
-          </div>
         </aside>
       </div>
 
@@ -245,17 +271,22 @@ function SavedProperties() {
 function Section({
   title,
   subtitle,
+  action,
   children,
 }: {
   title: string;
   subtitle?: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section>
-      <div className="mb-4 lg:mb-5">
-        <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-xl">{title}</h2>
-        {subtitle && <p className="mt-1 text-xs text-muted-foreground lg:text-sm">{subtitle}</p>}
+      <div className="mb-4 flex items-start justify-between gap-3 lg:mb-5">
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-xl">{title}</h2>
+          {subtitle && <p className="mt-1 text-xs text-muted-foreground lg:text-sm">{subtitle}</p>}
+        </div>
+        {action && <div className="shrink-0">{action}</div>}
       </div>
       {children}
     </section>
@@ -298,21 +329,24 @@ function Row({
   right,
   onClick,
   last,
+  destructive,
 }: {
   icon: any;
   label: string;
-  right: React.ReactNode;
+  right?: React.ReactNode;
   onClick?: () => void;
   last?: boolean;
+  destructive?: boolean;
 }) {
   const className = cn(
     "flex w-full items-center gap-4 px-5 py-4 text-left transition-colors",
     onClick && "hover:bg-secondary/50 active:bg-secondary",
+    destructive && "text-destructive hover:bg-destructive/10",
     !last && "border-b border-border/50"
   );
   const content = (
     <>
-      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary/50 text-foreground">
+      <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary/50 text-foreground", destructive && "bg-destructive/10 text-destructive")}>
         <Icon className="h-5 w-5" />
       </div>
       <span className="flex-1 text-sm font-bold lg:text-base">{label}</span>
