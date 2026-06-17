@@ -1,0 +1,23 @@
+# Logs
+logs
+*.log
+
+# Dependences
+node_modules
+
+# Compilation TypeScript
+dist/
+build/
+*.tsbuildinfo
+
+# Prisma
+/prisma/generated/
+*.db
+*.db-journal
+
+# Variables localhost
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
