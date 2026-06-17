@@ -21,7 +21,7 @@ export class AuthController {
     async register (req: Request<{}, {}, RegisterSchemaType>, res: Response) {
         try {
             const { email, password, name, phone, userRole } = req.body;
-            const token = await this.authService.registerUser(email, password, name, userRole as UserRole, phone);
+            const token = await this.authService.registerUser(email, password, name, userRole ?? UserRole.CLIENTE, phone);
             res.status(HttpStatusEnum.CREATED).json({ token });
         } catch(err: any) {
             // Email já registrado

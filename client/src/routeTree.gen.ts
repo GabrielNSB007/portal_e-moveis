@@ -8,6 +8,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AgentRouteImport } from './routes/agent'
 import { Route as TabsRouteImport } from './routes/_tabs'
 import { Route as IndexRouteImport } from './routes/index'
@@ -20,6 +21,11 @@ import { Route as TabsAlertasRouteImport } from './routes/_tabs.alertas'
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AgentRoute = AgentRouteImport.update({
@@ -65,6 +71,7 @@ const TabsAlertasRoute = TabsAlertasRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agent': typeof AgentRoute
+  '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
   '/alertas': typeof TabsAlertasRoute
   '/explore': typeof TabsExploreRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agent': typeof AgentRoute
+  '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
   '/alertas': typeof TabsAlertasRoute
   '/explore': typeof TabsExploreRoute
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_tabs': typeof TabsRouteWithChildren
   '/agent': typeof AgentRoute
+  '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
   '/_tabs/alertas': typeof TabsAlertasRoute
   '/_tabs/explore': typeof TabsExploreRoute
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/agent'
+    | '/auth'
     | '/onboarding'
     | '/alertas'
     | '/explore'
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/agent'
+    | '/auth'
     | '/onboarding'
     | '/alertas'
     | '/explore'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_tabs'
     | '/agent'
+    | '/auth'
     | '/onboarding'
     | '/_tabs/alertas'
     | '/_tabs/explore'
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   TabsRoute: typeof TabsRouteWithChildren
   AgentRoute: typeof AgentRoute
+  AuthRoute: typeof AuthRoute
   OnboardingRoute: typeof OnboardingRoute
   PropertyIdRoute: typeof PropertyIdRoute
 }
@@ -150,6 +163,13 @@ declare module '@tanstack/react-router' {
       path: '/agent'
       fullPath: '/agent'
       preLoaderRoute: typeof AgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_tabs': {
@@ -224,6 +244,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   TabsRoute: TabsRouteWithChildren,
   AgentRoute: AgentRoute,
+  AuthRoute: AuthRoute,
   OnboardingRoute: OnboardingRoute,
   PropertyIdRoute: PropertyIdRoute,
 }

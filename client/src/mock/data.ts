@@ -387,3 +387,110 @@ export const isMatched = (propertyId: string) =>
 
 export const fmtCurrency = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+
+export type AgentListing = {
+  id: string;
+  propertyId: string;
+  status: "ATIVA" | "PAUSADA" | "VENDIDA";
+  views: number;
+  interests: number;
+  matches: number;
+  visits: number;
+  proposals: number;
+  updatedAt: string;
+};
+
+export type AgentProposal = {
+  id: string;
+  propertyId: string;
+  buyerName: string;
+  buyerMatch: number;
+  value: number;
+  status: "PENDENTE" | "ACEITA" | "RECUSADA";
+  message: string;
+  receivedAt: string;
+};
+
+export type AgentMatch = {
+  id: string;
+  propertyId: string;
+  buyerName: string;
+  score: number;
+  goal: string;
+  status: "Novo" | "Visualizado" | "Proposta enviada";
+  createdAt: string;
+};
+
+export const agentProfile = {
+  name: "Marina Costa",
+  company: "Costa Prime Imoveis",
+  roleStatus: "CLIENTE_COM_MODO_ANUNCIANTE",
+  verification: {
+    personalData: true,
+    contact: true,
+    documents: false,
+  },
+};
+
+export const agentListings: AgentListing[] = [
+  { id: "al1", propertyId: "p1", status: "ATIVA", views: 1840, interests: 42, matches: 18, visits: 7, proposals: 3, updatedAt: "hoje" },
+  { id: "al2", propertyId: "p2", status: "ATIVA", views: 1260, interests: 31, matches: 14, visits: 5, proposals: 2, updatedAt: "ontem" },
+  { id: "al3", propertyId: "p3", status: "PAUSADA", views: 770, interests: 19, matches: 9, visits: 2, proposals: 1, updatedAt: "ha 4 dias" },
+  { id: "al4", propertyId: "p4", status: "VENDIDA", views: 2460, interests: 55, matches: 21, visits: 9, proposals: 4, updatedAt: "ha 6 dias" },
+];
+
+export const agentProposals: AgentProposal[] = [
+  {
+    id: "ap1",
+    propertyId: "p1",
+    buyerName: "Ana Mendes",
+    buyerMatch: 94,
+    value: 1240000,
+    status: "PENDENTE",
+    message: "Entrada aprovada e interesse em uma segunda visita esta semana.",
+    receivedAt: "ha 2h",
+  },
+  {
+    id: "ap2",
+    propertyId: "p2",
+    buyerName: "Bruno Vieira",
+    buyerMatch: 88,
+    value: 865000,
+    status: "PENDENTE",
+    message: "Busca apartamento pronto para morar e aceita financiar.",
+    receivedAt: "hoje",
+  },
+];
+
+export const agentMatches: AgentMatch[] = [
+  {
+    id: "am1",
+    propertyId: "p1",
+    buyerName: "Ana Mendes",
+    score: 94,
+    goal: "Cobertura em bairro caminhavel, ate R$ 1,5M",
+    status: "Proposta enviada",
+    createdAt: "ha 2h",
+  },
+  {
+    id: "am2",
+    propertyId: "p2",
+    buyerName: "Bruno Vieira",
+    score: 88,
+    goal: "Apartamento de 2 quartos perto de metro",
+    status: "Visualizado",
+    createdAt: "ha 6h",
+  },
+  {
+    id: "am3",
+    propertyId: "p3",
+    buyerName: "Mariana Rocha",
+    score: 83,
+    goal: "Studio mobiliado com vaga",
+    status: "Novo",
+    createdAt: "ontem",
+  },
+];
+
+export const agentListingByPropertyId = (propertyId: string) =>
+  agentListings.find((listing) => listing.propertyId === propertyId);

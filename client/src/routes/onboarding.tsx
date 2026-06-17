@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,11 @@ import {
   Home,
   Sparkles,
 } from "lucide-react";
+import {
+  getAuthToken,
+  getSessionEmail,
+  markOnboardingComplete,
+} from "@/lib/auth-session";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -53,7 +58,12 @@ function Onboarding() {
     set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   const finish = () => {
-    localStorage.setItem("emoveis-onboarded", "1");
+    if (!getAuthToken()) {
+      navigate({ to: "/auth" });
+      return;
+    }
+
+    markOnboardingComplete(getSessionEmail());
     toast.success("Perfil criado com sucesso!");
     setTimeout(() => navigate({ to: "/explore" }), 1800);
   };
@@ -113,14 +123,17 @@ function Onboarding() {
                   <div className="mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-gradient-primary shadow-float">
                     <Sparkles className="h-10 w-10 text-primary-foreground" />
                   </div>
-                  <h1 className="text-4xl font-bold tracking-tight md:text-5xl">E-móveis</h1>
+                  <h1 className="text-4xl font-bold tracking-tight md:text-5xl">E-moveis</h1>
                   <p className="mt-1 text-xs uppercase tracking-[0.2em] text-primary">active matchmaking</p>
                   <h2 className="mt-8 max-w-md text-3xl font-bold leading-tight md:text-4xl">
-                    Encontre o imóvel ideal sem perder tempo.
+                    Vamos montar seu perfil de busca.
                   </h2>
                   <p className="mt-4 max-w-md text-base text-muted-foreground md:text-lg">
-                    O E-móveis aprende o que você gosta e encontra imóveis compatíveis com você.
+                    Responda algumas perguntas para o E-moveis priorizar imoveis compativeis com seu momento.
                   </p>
+                  <Link to="/auth" className="mt-6 text-sm font-semibold text-primary hover:underline">
+                    Entrar com outra conta
+                  </Link>
                 </div>
               )}
 

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Bell, BedDouble, Home, MapPin, Search, SlidersHorizontal, Sparkles } from "lucide-react";
-import { properties, fmtCurrency } from "@/mock/data";
+import { properties } from "@/mock/data";
 import { EmptyState } from "@/components/emoveis/EmptyState";
 import { FilterModal } from "@/components/emoveis/FilterModal";
 import { Logo } from "@/components/emoveis/Logo";

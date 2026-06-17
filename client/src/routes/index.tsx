@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Logo } from "@/components/emoveis/Logo";
+import { getAuthToken, hasCompletedOnboarding } from "@/lib/auth-session";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -9,8 +10,9 @@ export const Route = createFileRoute("/")({
 function Index() {
   const navigate = useNavigate();
   useEffect(() => {
-    const done = typeof window !== "undefined" && localStorage.getItem("emoveis-onboarded") === "1";
-    navigate({ to: done ? "/explore" : "/onboarding", replace: true });
+    const token = typeof window !== "undefined" && getAuthToken();
+    const done = typeof window !== "undefined" && hasCompletedOnboarding();
+    navigate({ to: !token ? "/auth" : done ? "/explore" : "/onboarding", replace: true });
   }, [navigate]);
 
   return (
