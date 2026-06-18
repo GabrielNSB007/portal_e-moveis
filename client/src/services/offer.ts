@@ -1,4 +1,4 @@
-import type { CreateOfferFormData, UpdateOfferFormData, ReadDeleteOffer } from "@/types/offer";
+import type { CreateOfferFormData, UpdateOfferFormData, ReadDeleteOffer, ListOffersResponse } from "@/types/offer";
 import api from "./api"
 
 export const createOffer = async (offerData: CreateOfferFormData) => {
@@ -14,7 +14,7 @@ export const findOfferById = async (id : string) => {
 }
 
 export const findManyOffers = async () => {
-    return api.get<ReadDeleteOffer[]>(`/offers/`)
+    return api.get<ListOffersResponse>(`/offers/`)
 }
 
 

@@ -24,7 +24,7 @@ import {
   Sun,
   TrainFront,
 } from "lucide-react";
-import { fmtCurrency, properties, SEARCH_STYLES, user } from "@/mock/data";
+import { fmtCurrency, properties, SEARCH_STYLES, user, type Property } from "@/mock/data";
 import { PropertyCard } from "@/components/emoveis/PropertyCard";
 import { SectionHeader } from "@/components/emoveis/SectionHeader";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,10 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/hooks/use-theme";
 import { clearAuthToken, clearLegacyOnboardingFlag, clearSessionEmail, setSessionEmail } from "@/lib/auth-session";
 import api from "@/services/api";
+import { mapOffersToProperties } from "@/lib/offer-mappers";
+import { listSavedOffers } from "@/services/saved-offers";
+import { listMatches } from "@/services/matches";
+import type { BackendProposal } from "@/lib/offer-mappers";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -126,6 +130,8 @@ function Profile() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isActivatingSeller, setIsActivatingSeller] = useState(false);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>({ name: "", email: "", phone: "", password: "", currentPassword: "" });
+  const [savedProperties, setSavedProperties] = useState<Property[]>([]);
+  const [profileStats, setProfileStats] = useState({ interests: user.stats.interests, matches: user.stats.matches, viewed: user.stats.viewed });
   const p = user.preferences;
 
   useEffect(() => {
@@ -150,6 +156,46 @@ function Profile() {
       active = false;
     };
   }, [navigate]);
+
+
+
+  useEffect(() => {
+    let active = true;
+
+    Promise.all([
+      api.get<BackendProposal[]>("/proposals"),
+      listMatches(),
+    ])
+      .then(([proposalsResponse, matchesResponse]) => {
+        if (!active) return;
+        setProfileStats({
+          interests: proposalsResponse.data.length,
+          matches: matchesResponse.data.pagination?.total ?? matchesResponse.data.items.length,
+          viewed: user.stats.viewed,
+        });
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    listSavedOffers()
+      .then(({ data }) => {
+        if (active) setSavedProperties(mapOffersToProperties(data.map((item) => item.offer)));
+      })
+      .catch(() => {
+        if (active) setSavedProperties([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (profile?.email && !extras.documentStatus && !extras.avatar && !extras.income) {
@@ -268,9 +314,9 @@ function Profile() {
   };
 
   const stats = [
-    { icon: Send, label: "Interesses", value: user.stats.interests },
-    { icon: Sparkles, label: "Matches", value: user.stats.matches },
-    { icon: Eye, label: "Vistos", value: user.stats.viewed },
+    { icon: Send, label: "Interesses", value: profileStats.interests },
+    { icon: Sparkles, label: "Matches", value: profileStats.matches },
+    { icon: Eye, label: "Vistos", value: profileStats.viewed },
   ];
 
   const logout = () => {
@@ -439,7 +485,7 @@ function Profile() {
 
           {/* Imóveis Salvos Mobile (Oculto no Desktop) */}
           <div className="lg:hidden">
-            <SavedProperties />
+            <SavedProperties items={savedProperties} />
           </div>
         </div>
 
@@ -483,7 +529,7 @@ function Profile() {
 
           {/* Imóveis Salvos Desktop */}
           <div className="hidden lg:block">
-            <SavedProperties />
+            <SavedProperties items={savedProperties} />
           </div>
 
         </aside>
@@ -512,13 +558,15 @@ function Profile() {
   );
 }
 
-function SavedProperties() {
+function SavedProperties({ items }: { items: Property[] }) {
+  const list = items.length ? items : properties.slice(0, 4);
+
   return (
     <div>
-      <SectionHeader title="Imóveis Salvos" subtitle={`${user.stats.saved} imóveis`} />
+      <SectionHeader title="Imoveis Salvos" subtitle={`${list.length} imoveis`} />
       {/* Carrossel no Mobile, Grid no Desktop */}
       <div className="mt-3 flex gap-4 overflow-x-auto pb-2 no-scrollbar lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0">
-        {properties.slice(0, 4).map((pr) => (
+        {list.map((pr) => (
           <div key={pr.id} className="w-[240px] shrink-0 lg:w-auto">
             <PropertyCard property={pr} compact />
           </div>

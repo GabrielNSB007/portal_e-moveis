@@ -3,6 +3,7 @@ export type Property = {
   title: string;
   neighborhood: string;
   city: string;
+  state?: string;
   price: number;
   type: "Apartamento" | "Casa" | "Studio" | "Cobertura" | "Comercial";
   bedrooms: number;

@@ -10,6 +10,9 @@ import "./routes/OfferRoutes.js";
 import "./routes/PreferenceRoutes.js";
 import "./routes/MatchRoutes.js";
 import "./routes/ProposalRoutes.js";
+import "./routes/SavedOfferRoutes.js";
+import "./routes/NotificationRoutes.js";
+import "./routes/AnalyticsRoutes.js";
 
 @AppRoutes
 export default class App {

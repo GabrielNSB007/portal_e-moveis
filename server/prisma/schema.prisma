@@ -79,6 +79,10 @@ model User {
   proposalsSent Proposal[] @relation("BuyerProposals")
   profile       UserProfile?
   passwordRecoveryCodes PasswordRecoveryCode[]
+  savedOffers   SavedOffer[]
+  notifications Notification[]
+  views     OfferView[]
+  visits    OfferVisit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -140,6 +144,10 @@ model Offer {
   media     OfferMedia[]
   matches   Match[]
   proposals Proposal[]
+  savedBy   SavedOffer[]
+  notifications Notification[]
+  views     OfferView[]
+  visits    OfferVisit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -211,6 +219,77 @@ model Match {
 
   @@unique([offerId, preferenceId])
   @@index([score])
+}
+
+
+
+model OfferView {
+  id String @id @default(uuid())
+
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([offerId, createdAt])
+  @@index([userId])
+}
+
+model OfferVisit {
+  id String @id @default(uuid())
+
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  scheduledFor DateTime?
+  status       String @default("REQUESTED")
+  createdAt    DateTime @default(now())
+
+  @@index([offerId, createdAt])
+  @@index([userId])
+}
+
+model SavedOffer {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, offerId])
+  @@index([userId])
+  @@index([offerId])
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  offerId String?
+  offer   Offer? @relation(fields: [offerId], references: [id], onDelete: SetNull)
+
+  type        String
+  title       String
+  description String
+  read        Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, read])
+  @@index([offerId])
 }
 
 model Proposal {

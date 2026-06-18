@@ -22,6 +22,9 @@ import { fmtCurrency } from "@/mock/data";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import api from "@/services/api";
+import { listMatches } from "@/services/matches";
+import type { BackendProposal } from "@/lib/offer-mappers";
+import { getSellerAnalyticsSummary, type SellerAnalyticsSummary } from "@/services/analytics";
 
 export const Route = createFileRoute("/agent")({
   component: AgentDashboard,
@@ -122,6 +125,9 @@ const inputClass = "h-11 w-full rounded-2xl border border-input bg-background px
 function AgentDashboard() {
   const [profile, setProfile] = useState<AuthProfile | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [receivedProposals, setReceivedProposals] = useState<BackendProposal[]>([]);
+  const [matchCount, setMatchCount] = useState(0);
+  const [analytics, setAnalytics] = useState<SellerAnalyticsSummary>({ totalViews: 0, totalVisits: 0, byOffer: {} });
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState<OfferForm>(defaultForm);
@@ -133,12 +139,18 @@ function AgentDashboard() {
   const loadDashboard = async () => {
     setIsLoading(true);
     try {
-      const [{ data: profileData }, { data: offersData }] = await Promise.all([
+      const [{ data: profileData }, { data: offersData }, { data: proposalsData }, matchesResponse, { data: analyticsData }] = await Promise.all([
         api.get<AuthProfile>("/auth/profile"),
         api.get<OffersResponse>("/offers/mine?limit=50"),
+        api.get<BackendProposal[]>("/proposals/received"),
+        listMatches(),
+        getSellerAnalyticsSummary(),
       ]);
       setProfile(profileData);
       setOffers(offersData.items ?? []);
+      setReceivedProposals(proposalsData ?? []);
+      setMatchCount(matchesResponse.data.pagination?.total ?? matchesResponse.data.items?.length ?? 0);
+      setAnalytics(analyticsData);
     } catch (error: any) {
       toast.error(error?.response?.data?.error ?? "Não foi possível carregar o painel do anunciante.");
     } finally {
@@ -152,12 +164,19 @@ function AgentDashboard() {
 
   const metrics = useMemo(() => {
     const active = offers.filter((offer) => offer.status === "ATIVA").length;
-    const views = offers.reduce((sum, _offer, index) => sum + 120 + index * 37, 0);
-    const interests = offers.reduce((sum, _offer, index) => sum + 4 + index * 2, 0);
-    const matches = offers.reduce((sum, _offer, index) => sum + 2 + index, 0);
-    const visits = Math.max(0, Math.floor(interests / 3));
+    const views = analytics.totalViews;
+    const interests = receivedProposals.length;
+    const matches = matchCount;
+    const visits = analytics.totalVisits;
     return { active, views, interests, matches, visits };
-  }, [offers]);
+  }, [analytics.totalViews, analytics.totalVisits, matchCount, offers, receivedProposals.length]);
+
+  const proposalCountByOffer = useMemo(() => {
+    return receivedProposals.reduce<Record<string, number>>((acc, proposal) => {
+      acc[proposal.offerId] = (acc[proposal.offerId] ?? 0) + 1;
+      return acc;
+    }, {});
+  }, [receivedProposals]);
 
   const stats = [
     { icon: Eye, label: "Visualizações", value: compactNumber(metrics.views), trend: "+12%", color: "text-primary", bg: "bg-primary/10" },
@@ -253,7 +272,7 @@ function AgentDashboard() {
           </div>
         </div>
 
-        <ListingsSection offers={offers} activeCount={metrics.active} isLoading={isLoading} onCreate={openCreateForm} />
+        <ListingsSection offers={offers} activeCount={metrics.active} isLoading={isLoading} proposalCountByOffer={proposalCountByOffer} analyticsByOffer={analytics.byOffer} onCreate={openCreateForm} />
       </div>
 
       <OfferModal
@@ -363,7 +382,7 @@ function QuickRegisterCard({ onClick, disabled }: { onClick: () => void; disable
     </button>
   );
 }
-function ListingsSection({ offers, activeCount, isLoading, onCreate }: { offers: Offer[]; activeCount: number; isLoading: boolean; onCreate: () => void }) {
+function ListingsSection({ offers, activeCount, isLoading, proposalCountByOffer, analyticsByOffer, onCreate }: { offers: Offer[]; activeCount: number; isLoading: boolean; proposalCountByOffer: Record<string, number>; analyticsByOffer: SellerAnalyticsSummary["byOffer"]; onCreate: () => void }) {
   return (
     <section className="pt-2 lg:pt-6">
       <div className="mb-4 flex items-center justify-between px-1 lg:mb-6 lg:px-2">
@@ -384,14 +403,14 @@ function ListingsSection({ offers, activeCount, isLoading, onCreate }: { offers:
       )}
       <div className="grid gap-3 lg:grid-cols-2 lg:gap-5">
         {offers.map((offer, index) => (
-          <OfferCard key={offer.id} offer={offer} image={offer.media?.[0]?.url || fallbackImages[index % fallbackImages.length]} interests={4 + index * 2} />
+          <OfferCard key={offer.id} offer={offer} image={offer.media?.[0]?.url || fallbackImages[index % fallbackImages.length]} interests={proposalCountByOffer[offer.id] ?? 0} views={analyticsByOffer[offer.id]?.views ?? 0} />
         ))}
       </div>
     </section>
   );
 }
 
-function OfferCard({ offer, image, interests }: { offer: Offer; image: string; interests: number }) {
+function OfferCard({ offer, image, interests, views }: { offer: Offer; image: string; interests: number; views: number }) {
   return (
     <div className="group flex items-center gap-4 rounded-[1.5rem] border border-border/50 bg-card p-3 shadow-sm transition-all hover:border-border hover:shadow-md lg:p-4">
       <div className="relative shrink-0 overflow-hidden rounded-xl lg:h-24 lg:w-24 lg:rounded-2xl">
@@ -404,9 +423,15 @@ function OfferCard({ offer, image, interests }: { offer: Offer; image: string; i
       </div>
       <div className="flex flex-col items-end justify-between self-stretch py-1">
         <StatusPill status={offer.status} />
-        <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground lg:text-sm">
-          <Heart className="h-3 w-3 lg:h-4 lg:w-4" />
-          {interests}
+        <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground lg:text-sm">
+          <span className="inline-flex items-center gap-1">
+            <Eye className="h-3 w-3 lg:h-4 lg:w-4" />
+            {views}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Heart className="h-3 w-3 lg:h-4 lg:w-4" />
+            {interests}
+          </span>
         </div>
       </div>
     </div>
