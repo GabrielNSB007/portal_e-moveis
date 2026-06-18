@@ -59,6 +59,13 @@ enum Amenity {
   AREA_SERVICO
 }
 
+enum DocumentStatus {
+  PENDING
+  REVIEW
+  VERIFIED
+  REJECTED
+}
+
 model User {
   id        String   @id @default(uuid())
   name      String
@@ -70,9 +77,42 @@ model User {
   offers        Offer[]
   preferences   Preference[]
   proposalsSent Proposal[] @relation("BuyerProposals")
+  profile       UserProfile?
+  passwordRecoveryCodes PasswordRecoveryCode[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model UserProfile {
+  id               String         @id @default(uuid())
+  userId           String         @unique
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  avatarUrl        String?
+  income           Decimal?       @db.Decimal(12, 2)
+  downPayment      Decimal?       @db.Decimal(12, 2)
+  needsFinancing   Boolean?
+  purchaseType     String?
+  documentId       String?
+  documentStatus   DocumentStatus @default(PENDING)
+  documentSubmittedAt DateTime?
+  verifiedAt       DateTime?
+
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model PasswordRecoveryCode {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Offer {

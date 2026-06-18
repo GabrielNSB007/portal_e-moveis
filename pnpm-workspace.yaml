@@ -1,2 +1,10 @@
-allowBuilds:
-  bcrypt: true
+packages:
+  - client
+  - server
+
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - bcrypt
+  - esbuild
+  - prisma

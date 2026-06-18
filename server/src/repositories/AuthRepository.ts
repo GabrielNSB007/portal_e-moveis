@@ -34,6 +34,13 @@ export class AuthRepository {
         });
     }
 
+
+    async getByIdWithPassword(id: string): Promise<User | null> {
+        return await this.prisma.user.findUnique({
+            where: { id }
+        });
+    }
+
     async create (
         email: string,
         password: string,
@@ -67,6 +74,45 @@ export class AuthRepository {
             }
         });
         return updatedUser;
+    }
+
+
+    async getProfileDetails(userId: string) {
+        return await this.prisma.userProfile.findUnique({
+            where: { userId }
+        });
+    }
+
+    async upsertProfileDetails(userId: string, data: Prisma.UserProfileUncheckedUpdateInput) {
+        return await this.prisma.userProfile.upsert({
+            where: { userId },
+            create: {
+                ...(data as Prisma.UserProfileUncheckedCreateInput),
+                userId,
+            },
+            update: data,
+        });
+    }
+
+
+    async createPasswordRecoveryCode(userId: string, codeHash: string, expiresAt: Date) {
+        return await this.prisma.passwordRecoveryCode.create({
+            data: { userId, codeHash, expiresAt }
+        });
+    }
+
+    async getLatestPasswordRecoveryCode(userId: string) {
+        return await this.prisma.passwordRecoveryCode.findFirst({
+            where: { userId, usedAt: null, expiresAt: { gt: new Date() } },
+            orderBy: { createdAt: "desc" }
+        });
+    }
+
+    async markPasswordRecoveryCodeUsed(id: string) {
+        return await this.prisma.passwordRecoveryCode.update({
+            where: { id },
+            data: { usedAt: new Date() }
+        });
     }
 
     async delete(id: string): Promise<SafeUser> {

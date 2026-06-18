@@ -33,6 +33,10 @@ export class OfferRoutes {
       this.offerController.readAll(req, res),
     );
 
+    this.router.get("/mine", authenticate, validate(ListOffersSchema), (req, res) =>
+      this.offerController.readMine(req, res),
+    );
+
     this.router.get("/:id", validate(OfferIdParamsSchema), (req, res) =>
       this.offerController.readById(req, res),
     );

@@ -21,13 +21,14 @@ import { fmtCurrency } from "@/mock/data";
 import { getAuthToken, getSessionEmail, markOnboardingComplete } from "@/lib/auth-session";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import api from "@/services/api";
 
 export const Route = createFileRoute("/onboarding")({
   component: Onboarding,
 });
 
 const OBJECTIVES = [
-  { value: "Comprar", desc: "Buscar imovel para morar", icon: Home },
+  { value: "Comprar", desc: "Buscar im?vel para morar", icon: Home },
   { value: "Alugar", desc: "Encontrar aluguel ideal", icon: Building2 },
   { value: "Investir", desc: "Priorizar retorno e liquidez", icon: Coins },
 ];
@@ -67,6 +68,30 @@ const AMENITIES = [
   "Rooftop",
 ];
 const NEARBY = ["Metro", "Parques", "Escolas", "Mercado", "Hospital", "Ciclovia", "Shopping", "Trabalho", "Restaurantes", "Praia", "Academia", "Farmacia"];
+
+const typeToBackend = (type: string) => {
+  const normalized = type.toLowerCase();
+  if (normalized.includes("casa")) return "CASA";
+  if (normalized.includes("studio")) return "STUDIO";
+  if (normalized.includes("cobertura")) return "COBERTURA";
+  if (normalized.includes("terreno")) return "TERRENO";
+  return "APARTAMENTO";
+};
+
+const amenityToBackend = (amenity: string) => {
+  const normalized = amenity.toLowerCase();
+  if (normalized.includes("piscina")) return "PISCINA";
+  if (normalized.includes("academia")) return "ACADEMIA";
+  if (normalized.includes("churrasqueira")) return "CHURRASQUEIRA";
+  if (normalized.includes("elevador")) return "ELEVADOR";
+  if (normalized.includes("portaria")) return "PORTARIA";
+  if (normalized.includes("mobiliado")) return "MOBILIADO";
+  if (normalized.includes("pet")) return "PET_FRIENDLY";
+  if (normalized.includes("varanda")) return "VARANDA";
+  if (normalized.includes("servico") || normalized.includes("servi?o")) return "AREA_SERVICO";
+  return null;
+};
+
 const STYLES = [
   { value: "Moderno", img: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=600&q=80" },
   { value: "Compacto", img: "https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=600&q=80" },
@@ -120,15 +145,35 @@ function Onboarding() {
     return true;
   })();
 
-  const finish = () => {
+  const finish = async () => {
     if (!getAuthToken()) {
       navigate({ to: "/auth" });
       return;
     }
 
-    markOnboardingComplete(getSessionEmail());
-    toast.success("Perfil criado com sucesso!");
-    setTimeout(() => navigate({ to: "/explore" }), 900);
+    try {
+      await api.post("/preferences", {
+        title: `Busca para ${objective.toLowerCase()}`,
+        minPrice: budget[0],
+        maxPrice: budget[1],
+        minAreaM2: area[0],
+        maxAreaM2: area[1],
+        minBedrooms: bedrooms,
+        minBathrooms: bathrooms,
+        minParkingSpots: parking,
+        propertyTypes: Array.from(new Set(types.map(typeToBackend))),
+        neighborhoods,
+        city,
+        state: city === "Brasilia" ? "DF" : "BR",
+        desiredAmenities: Array.from(new Set(amenities.map(amenityToBackend).filter(Boolean))),
+        isActive: true,
+      });
+      markOnboardingComplete(getSessionEmail());
+      toast.success("Prefer?ncias salvas com sucesso!");
+      setTimeout(() => navigate({ to: "/explore" }), 900);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error ?? "N?o foi poss?vel salvar suas prefer?ncias.");
+    }
   };
 
   return (
@@ -177,7 +222,7 @@ function Onboarding() {
               )}
 
               {step === 1 && (
-                <Step title="Qual e o seu momento?" subtitle="Isso muda preco, filtros e prioridade dos resultados.">
+                <Step title="Qual ? o seu momento?" subtitle="Isso muda pre?o, filtros e prioridade dos resultados.">
                   <div className="grid gap-3">
                     {OBJECTIVES.map(({ value, desc, icon: Icon }) => (
                       <ChoiceCard key={value} active={objective === value} onClick={() => {
@@ -220,7 +265,7 @@ function Onboarding() {
               )}
 
               {step === 3 && (
-                <Step title={objective === "Alugar" ? "Qual aluguel cabe no mes?" : "Qual faixa de preco faz sentido?"} subtitle="Esse filtro tambem aparece na tela Explorar.">
+                <Step title={objective === "Alugar" ? "Qual aluguel cabe no mes?" : "Qual faixa de pre?o faz sentido?"} subtitle="Esse filtro tamb?m aparece na tela Explorar.">
                   <RangeCard
                     value={budget}
                     onChange={setBudget}
@@ -233,7 +278,7 @@ function Onboarding() {
               )}
 
               {step === 4 && (
-                <Step title="Que tipo de imovel voce aceita?" subtitle="Selecione todos que fariam sentido.">
+                <Step title="Que tipo de im?vel voce aceita?" subtitle="Selecione todos que fariam sentido.">
                   <ChipGroup items={TYPES} selected={types} onToggle={(value) => toggle(types, value, setTypes)} columns="md:grid-cols-4" />
                 </Step>
               )}
@@ -255,13 +300,13 @@ function Onboarding() {
               )}
 
               {step === 7 && (
-                <Step title="O que precisa estar perto?" subtitle="Ajuda o match a priorizar localizacao alem do bairro.">
+                <Step title="O que precisa estar perto?" subtitle="Ajuda o match a priorizar localiza??o al?m do bairro.">
                   <ChipGroup items={NEARBY} selected={nearby} onToggle={(value) => toggle(nearby, value, setNearby)} columns="md:grid-cols-4" />
                 </Step>
               )}
 
               {step === 8 && (
-                <Step title="Qual visual combina mais?" subtitle="Nao elimina resultados; so ajuda a ordenar.">
+                <Step title="Qual visual combina mais?" subtitle="N?o elimina resultados; so ajuda a ordenar.">
                   <div className="mx-auto grid max-w-2xl grid-cols-2 gap-3 md:gap-4">
                     {STYLES.map((item) => (
                       <button
@@ -295,7 +340,7 @@ function Onboarding() {
                     <SummaryRow label="Preco" value={`${fmtCurrency(budget[0])} ate ${fmtCurrency(budget[1])}`} />
                     <SummaryRow label="Tipos" value={types.join(", ")} />
                     <SummaryRow label="Estrutura" value={`${bedrooms}+ quartos, ${bathrooms}+ banheiros, ${parking}+ vagas`} />
-                    <SummaryRow label="Comodidades" value={amenities.length ? amenities.join(", ") : "Sem preferencia"} />
+                    <SummaryRow label="Comodidades" value={amenities.length ? amenities.join(", ") : "Sem prefer?ncia"} />
                   </div>
                 </Step>
               )}
@@ -309,7 +354,7 @@ function Onboarding() {
             onClick={() => (step === steps.length - 1 ? finish() : setStep((value) => value + 1))}
             className="h-12 w-full rounded-2xl bg-gradient-primary text-base font-bold shadow-soft md:h-14"
           >
-            {step === steps.length - 1 ? "Explorar imoveis" : step === 0 ? "Comecar" : "Continuar"}
+            {step === steps.length - 1 ? "Explorar im?veis" : step === 0 ? "Come?ar" : "Continuar"}
             <ArrowRight className="h-5 w-5" />
           </Button>
         </footer>

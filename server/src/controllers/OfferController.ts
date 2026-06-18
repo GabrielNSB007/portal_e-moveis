@@ -29,6 +29,29 @@ export class OfferController {
     }
   }
 
+
+  async readMine(req: Request, res: Response) {
+    try {
+      const userId = res.locals.userId;
+      const query = req.query as unknown as ListOffersQuery;
+
+      const result = await this.offerService.findMine(userId, {
+        city: query.city,
+        state: query.state,
+        status: query.status,
+        propertyType: query.propertyType,
+        minPrice: query.minPrice,
+        maxPrice: query.maxPrice,
+        page: query.page ?? 1,
+        limit: query.limit ?? 50,
+      });
+
+      return res.status(200).json(result);
+    } catch (err: any) {
+      return this.handleError(err, res);
+    }
+  }
+
   async readById(req: Request, res: Response) {
     try {
       const { id } = req.params;
