@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { alerts, propertyById, type Alert, type AlertType } from "@/mock/data";
+import { alerts, propertyById, type Alert, type AlertType, type Property } from "@/mock/data";
 import { EmptyState } from "@/components/emoveis/EmptyState";
 import {
   Bell,
@@ -14,8 +14,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { mapOfferToProperty } from "@/lib/offer-mappers";
+import { listNotifications, markAllNotificationsRead } from "@/services/notifications";
 
 export const Route = createFileRoute("/_tabs/alertas")({
   component: Alertas,
@@ -30,9 +32,63 @@ const ICONS: Record<AlertType, { icon: any; tone: string }> = {
   interest_sent: { icon: Send, tone: "bg-muted text-muted-foreground" },
 };
 
+type DisplayAlert = Alert & { property?: Property };
+
+const notificationType = (type: string): AlertType => {
+  if (type === "match") return "match";
+  if (type === "proposal") return "proposal";
+  if (type === "interest_sent") return "interest_sent";
+  if (type === "interest_received") return "interest_received";
+  return "new_compatible";
+};
+
+const notificationGroup = (createdAt: string): DisplayAlert["group"] => {
+  const date = new Date(createdAt);
+  const now = new Date();
+  if (Number.isNaN(date.getTime())) return "Hoje";
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
+  if (diffDays <= 0) return "Hoje";
+  if (diffDays === 1) return "Ontem";
+  return "Esta semana";
+};
+
+const notificationTime = (createdAt: string) => {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return "agora";
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(date);
+};
+
 function Alertas() {
-  const [items, setItems] = useState<Alert[]>(alerts);
+  const [items, setItems] = useState<DisplayAlert[]>(alerts);
+
   const unread = items.filter((a) => !a.read).length;
+
+  useEffect(() => {
+    let active = true;
+
+    listNotifications()
+      .then(({ data }) => {
+        if (!active || !data.length) return;
+        setItems(
+          data.map((item, index) => ({
+            id: item.id,
+            type: notificationType(item.type),
+            title: item.title,
+            description: item.description,
+            time: notificationTime(item.createdAt),
+            group: notificationGroup(item.createdAt),
+            propertyId: item.offerId ?? undefined,
+            property: item.offer ? mapOfferToProperty(item.offer, index) : undefined,
+            read: item.read,
+          })),
+        );
+      })
+      .catch(() => setItems(alerts));
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const grouped = useMemo(() => {
     const g: Record<string, Alert[]> = { Hoje: [], Ontem: [], "Esta semana": [] };
@@ -40,7 +96,14 @@ function Alertas() {
     return g;
   }, [items]);
 
-  const markAll = () => setItems((arr) => arr.map((a) => ({ ...a, read: true })));
+  const markAll = async () => {
+    setItems((arr) => arr.map((a) => ({ ...a, read: true })));
+    try {
+      await markAllNotificationsRead();
+    } catch {
+      // Mantem otimista; a proxima carga sincroniza novamente.
+    }
+  };
 
   return (
     <div className="mx-auto pb-24 lg:max-w-[800px] lg:px-8 lg:py-8 lg:pb-12">
@@ -119,9 +182,9 @@ function Alertas() {
   );
 }
 
-function AlertRow({ alert, delay }: { alert: Alert; delay: number }) {
+function AlertRow({ alert, delay }: { alert: DisplayAlert; delay: number }) {
   const meta = ICONS[alert.type];
-  const p = alert.propertyId ? propertyById(alert.propertyId) : null;
+  const p = alert.property ?? (alert.propertyId ? propertyById(alert.propertyId) : null);
 
   const body = (
     <div

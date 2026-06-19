@@ -8,9 +8,9 @@ export const propertyTypes = [
   "TERRENO",
 ] as const;
 
-export const offerStatuses = ["ATIVA", "PAUSADA", "FINALIZADA"] as const;
+export const offerStatuses = ["ATIVA", "PAUSADA", "VENDIDA", "EXPIRADA"] as const;
 
-export const mediaTypes = ["IMAGE", "VIDEO"] as const;
+export const mediaTypes = ["FOTO", "VIDEO"] as const;
 
 export const offerMediaSchema = z.object({
   url: z.string().url("URL da mídia inválida."),
@@ -81,7 +81,19 @@ export type CreateOfferFormData = z.infer<typeof createOfferSchema>;
 export type UpdateOfferFormData = z.infer<typeof updateOfferSchema>;
 export type OfferMediaFormData = z.infer<typeof offerMediaSchema>;
 
-export interface ReadDeleteOffer
-  extends Partial<UpdateOfferFormData> {
+export interface ReadDeleteOffer extends Partial<UpdateOfferFormData> {
   id: string;
+  status?: (typeof offerStatuses)[number];
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+export type ListOffersResponse = {
+  items: ReadDeleteOffer[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};

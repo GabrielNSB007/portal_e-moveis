@@ -1,5 +1,21 @@
 {
-	"dependencies": {
-		"bcrypt": "^6.0.0"
-	}
+  "private": true,
+  "packageManager": "pnpm@10.12.1",
+  "scripts": {
+    "dev:client": "pnpm --dir client run dev",
+    "dev:server": "pnpm --dir server run dev",
+    "build:client": "pnpm --dir client run build",
+    "build:server": "pnpm --dir server run build",
+    "prisma:push": "pnpm --dir server exec prisma db push",
+    "prisma:generate": "pnpm --dir server exec prisma generate"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "bcrypt",
+      "esbuild",
+      "prisma"
+    ]
+  }
 }

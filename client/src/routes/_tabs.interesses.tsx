@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Check,
   CheckCircle2,
@@ -30,12 +30,18 @@ import { MatchBadge } from "@/components/emoveis/MatchBadge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import api from "@/services/api";
+import { formatDateLabel, mapOfferToProperty, type BackendProposal } from "@/lib/offer-mappers";
+import { listMatches, type BackendMatch } from "@/services/matches";
 
 export const Route = createFileRoute("/_tabs/interesses")({
   component: Interesses,
 });
 
 type Tab = "sent" | "received" | "matches";
+
+type UiProposal = BackendProposal & { property: ReturnType<typeof mapOfferToProperty> };
+type UiMatch = BackendMatch & { property: ReturnType<typeof mapOfferToProperty> };
 
 const STATUS_META: Record<InterestStatus, { icon: any; label: string; tone: string; step: number }> = {
   Enviado: { icon: Send, label: "Interesse enviado", tone: "bg-muted text-muted-foreground", step: 0 },
@@ -49,10 +55,80 @@ const STATUS_META: Record<InterestStatus, { icon: any; label: string; tone: stri
 
 function Interesses() {
   const [tab, setTab] = useState<Tab>("sent");
+  const [sentProposals, setSentProposals] = useState<UiProposal[]>([]);
+  const [receivedProposals, setReceivedProposals] = useState<UiProposal[]>([]);
+  const [realMatches, setRealMatches] = useState<UiMatch[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadProposals() {
+      try {
+        const [sentResponse, receivedResponse] = await Promise.all([
+          api.get<BackendProposal[]>("/proposals"),
+          api.get<BackendProposal[]>("/proposals/received"),
+        ]);
+
+        if (!mounted) return;
+
+        setSentProposals(
+          (sentResponse.data ?? [])
+            .filter((proposal) => proposal.offer)
+            .map((proposal, index) => ({
+              ...proposal,
+              property: mapOfferToProperty(proposal.offer, index),
+            })),
+        );
+        setReceivedProposals(
+          (receivedResponse.data ?? [])
+            .filter((proposal) => proposal.offer)
+            .map((proposal, index) => ({
+              ...proposal,
+              property: mapOfferToProperty(proposal.offer, index),
+            })),
+        );
+      } catch {
+        if (!mounted) return;
+        setSentProposals([]);
+        setReceivedProposals([]);
+      }
+    }
+
+    void loadProposals();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    listMatches()
+      .then(({ data }) => {
+        if (!mounted) return;
+        setRealMatches(
+          (data.items ?? [])
+            .filter((match) => match.offer)
+            .map((match, index) => ({
+              ...match,
+              property: mapOfferToProperty(match.offer, index),
+            })),
+        );
+      })
+      .catch(() => {
+        if (mounted) setRealMatches([]);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const counts = {
-    sent: sentInterests.length,
-    received: receivedInterests.length,
-    matches: matches.length,
+    sent: sentProposals.length || sentInterests.length,
+    received: receivedProposals.length || receivedInterests.length,
+    matches: realMatches.length || matches.length,
   };
 
   return (
@@ -93,15 +169,15 @@ function Interesses() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {tab === "sent" && <SentList />}
-              {tab === "received" && <ReceivedList />}
-              {tab === "matches" && <MatchesList />}
+              {tab === "sent" && <SentList proposals={sentProposals} />}
+              {tab === "received" && <ReceivedList proposals={receivedProposals} />}
+              {tab === "matches" && <MatchesList items={realMatches} />}
             </motion.div>
           </AnimatePresence>
         </div>
         
         {/* SIDEBAR DESKTOP */}
-        <InterestDetailPanel tab={tab} counts={counts} />
+        <InterestDetailPanel tab={tab} counts={counts} sentProposals={sentProposals} realMatches={realMatches} />
       </div>
     </div>
   );
@@ -142,12 +218,16 @@ function TabBtn({
 function InterestDetailPanel({
   tab,
   counts,
+  sentProposals,
+  realMatches,
 }: {
   tab: Tab;
   counts: { sent: number; received: number; matches: number };
+  sentProposals: UiProposal[];
+  realMatches: UiMatch[];
 }) {
   const featured =
-    tab === "matches" ? propertyById(matches[0]?.propertyId) : propertyById(sentInterests[0]?.propertyId);
+    tab === "matches" ? realMatches[0]?.property ?? propertyById(matches[0]?.propertyId) : sentProposals[0]?.property ?? propertyById(sentInterests[0]?.propertyId);
 
   return (
     <aside className="sticky top-8 hidden h-fit space-y-6 lg:block">
@@ -202,7 +282,83 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function SentList() {
+function proposalStatusToInterestStatus(status: string): InterestStatus {
+  if (status === "ACEITA") return "Match";
+  if (status === "RECUSADA" || status === "CANCELADA") return "Visualizado";
+  return "Aguardando resposta";
+}
+
+function SentList({ proposals }: { proposals: UiProposal[] }) {
+  if (proposals.length) {
+    return (
+      <div className="space-y-4 lg:space-y-5">
+        {proposals.map((proposal, i) => {
+          const p = proposal.property;
+          const meta = STATUS_META[proposalStatusToInterestStatus(proposal.status)];
+          const Icon = meta.icon;
+
+          return (
+            <motion.div
+              key={proposal.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+            >
+              <Link
+                to="/property/$id"
+                params={{ id: p.id }}
+                className="group block overflow-hidden rounded-[1.5rem] border border-border/50 bg-card shadow-sm transition-all hover:border-border hover:shadow-md active:scale-[0.99] lg:rounded-[2rem]"
+              >
+                <div className="flex gap-4 p-4 lg:p-5">
+                  <div className="relative shrink-0 overflow-hidden rounded-2xl lg:h-28 lg:w-28 lg:rounded-[1.25rem]">
+                    <img src={p.images[0]} alt="" className="h-20 w-20 object-cover transition-transform duration-500 group-hover:scale-110 lg:h-full lg:w-full" />
+                  </div>
+                  <div className="min-w-0 flex-1 pt-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="line-clamp-1 text-base font-bold lg:text-lg">{p.title}</h3>
+                      <span
+                        className={cn(
+                          "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider lg:px-3 lg:py-1.5 lg:text-xs",
+                          meta.tone
+                        )}
+                      >
+                        <Icon className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
+                        <span className="hidden sm:inline">{meta.label}</span>
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground lg:text-sm">
+                      {p.neighborhood} - enviado {formatDateLabel(proposal.createdAt)}
+                    </div>
+                    <div className="mt-2 text-lg font-bold text-foreground lg:mt-3 lg:text-xl">{fmtCurrency(p.price)}</div>
+                  </div>
+                </div>
+
+                <div className="border-t border-border bg-secondary/30 px-5 py-4 lg:px-6">
+                  <div className="flex items-center gap-2">
+                    {[0, 1, 2, 3, 4].map((step) => (
+                      <div key={step} className="relative flex-1">
+                        <div className={cn("h-1.5 w-full rounded-full transition-all duration-500 lg:h-2", step <= meta.step ? "bg-primary" : "bg-border/60")} />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground lg:text-xs">
+                    <span>Enviado</span>
+                    <span className="hidden sm:inline">Visualizado</span>
+                    <span>Match</span>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return <MockSentList />;
+}
+
+function MockSentList() {
   if (!sentInterests.length) {
     return (
       <div className="mt-8 lg:mt-16">
@@ -290,14 +446,88 @@ function SentList() {
   );
 }
 
-function ReceivedList() {
+
+
+async function updateProposalStatus(id: string, status: "ACEITA" | "RECUSADA" | "CANCELADA") {
+  await api.patch(`/proposals/${id}/status`, { status });
+}
+
+function ReceivedList({ proposals }: { proposals: UiProposal[] }) {
+  if (proposals.length) {
+    return (
+      <div className="space-y-4 lg:space-y-5">
+        {proposals.map((proposal, i) => {
+          const p = proposal.property;
+          const buyerName = proposal.buyer?.name ?? "Comprador interessado";
+
+          return (
+            <motion.div
+              key={proposal.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className="overflow-hidden rounded-[1.5rem] border border-border/50 bg-card shadow-sm transition-shadow hover:shadow-md lg:rounded-[2rem]"
+            >
+              <Link to="/property/$id" params={{ id: p.id }} className="group block">
+                <div className="relative h-40 overflow-hidden lg:h-48">
+                  <img src={p.images[0]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute left-4 top-4"><MatchBadge value={p.match} /></div>
+                  <div className="absolute bottom-4 left-4 right-4 text-white">
+                    <div className="line-clamp-1 text-lg font-bold lg:text-xl">{p.title}</div>
+                    <div className="mt-1 text-xs font-medium opacity-90 lg:text-sm">{p.neighborhood} - {fmtCurrency(p.price)}</div>
+                  </div>
+                </div>
+              </Link>
+
+              <div className="p-5 lg:p-6">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-primary lg:text-xs">
+                  <Sparkles className="h-4 w-4" />
+                  Proposta recebida de {buyerName}
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-foreground lg:text-base">
+                  {proposal.message ?? "Comprador demonstrou interesse neste imovel."}
+                </p>
+                <p className="mt-2 text-[11px] font-medium text-muted-foreground lg:text-xs">Recebido: {formatDateLabel(proposal.createdAt)}</p>
+
+                <div className="mt-5 flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      updateProposalStatus(proposal.id, "RECUSADA")
+                        .then(() => toast("Proposta recusada."))
+                        .catch((error: any) => toast.error(error?.response?.data?.error ?? "Nao foi possivel recusar."));
+                    }}
+                    className="h-12 flex-1 rounded-xl text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive lg:rounded-2xl"
+                  >
+                    <X className="mr-2 h-4 w-4" /> Recusar
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      updateProposalStatus(proposal.id, "ACEITA")
+                        .then(() => toast.success("Proposta aceita."))
+                        .catch((error: any) => toast.error(error?.response?.data?.error ?? "Nao foi possivel aceitar."));
+                    }}
+                    className="h-12 flex-1 rounded-xl bg-primary font-bold shadow-soft transition-transform active:scale-95 lg:rounded-2xl"
+                  >
+                    <Check className="mr-2 h-4 w-4" /> Aceitar
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    );
+  }
+
   if (!receivedInterests.length) {
     return (
       <div className="mt-8 lg:mt-16">
         <EmptyState
           icon={Inbox}
           title="Nada recebido ainda"
-          description="Quando um vendedor ou corretor indicar um imóvel compatível para o seu perfil, ele aparecerá aqui."
+          description="Quando um anunciante demonstrar interesse ou uma proposta chegar, ela aparecera aqui."
         />
       </div>
     );
@@ -308,7 +538,7 @@ function ReceivedList() {
       <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 lg:rounded-[1.5rem] lg:p-5">
         <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <p className="text-sm font-medium text-primary/80 lg:text-base">
-          Seus dados estão protegidos. O contato externo só será liberado após você aceitar e dar o <strong className="text-primary">Match mútuo</strong>.
+          Seus dados seguem protegidos. O contato externo so aparece quando houver match ou proposta aceita.
         </p>
       </div>
 
@@ -328,43 +558,20 @@ function ReceivedList() {
               <div className="relative h-40 overflow-hidden lg:h-48">
                 <img src={p.images[0]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute left-4 top-4">
-                  <MatchBadge value={p.match} />
-                </div>
+                <div className="absolute left-4 top-4"><MatchBadge value={p.match} /></div>
                 <div className="absolute bottom-4 left-4 right-4 text-white">
                   <div className="line-clamp-1 text-lg font-bold lg:text-xl">{p.title}</div>
-                  <div className="mt-1 text-xs font-medium opacity-90 lg:text-sm">
-                    {p.neighborhood} · {fmtCurrency(p.price)}
-                  </div>
+                  <div className="mt-1 text-xs font-medium opacity-90 lg:text-sm">{p.neighborhood} - {fmtCurrency(p.price)}</div>
                 </div>
               </div>
             </Link>
-
             <div className="p-5 lg:p-6">
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-primary lg:text-xs">
                 <Sparkles className="h-4 w-4" />
-                {r.from === "Sistema" ? "Sugestão do Algoritmo" : "Anunciante interessado em você"}
+                {r.from === "Sistema" ? "Sugestao do algoritmo" : "Anunciante interessado"}
               </div>
               <p className="mt-2 text-sm leading-relaxed text-foreground lg:text-base">{r.reason}</p>
               <p className="mt-2 text-[11px] font-medium text-muted-foreground lg:text-xs">Recebido: {r.receivedAt}</p>
-
-              <div className="mt-5 flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => toast("Interesse recusado e arquivado.")}
-                  className="h-12 flex-1 rounded-xl text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive lg:rounded-2xl"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Recusar
-                </Button>
-                <Button
-                  onClick={() => toast.success("Interesse aceito! Se houver confirmação mútua, o contato será liberado.")}
-                  className="h-12 flex-1 rounded-xl bg-primary font-bold shadow-soft transition-transform active:scale-95 lg:rounded-2xl"
-                >
-                  <Check className="mr-2 h-4 w-4" />
-                  Aceitar Imóvel
-                </Button>
-              </div>
             </div>
           </motion.div>
         );
@@ -373,14 +580,70 @@ function ReceivedList() {
   );
 }
 
-function MatchesList() {
+function MatchesList({ items }: { items: UiMatch[] }) {
+  if (items.length) {
+    return (
+      <div className="space-y-5 lg:space-y-6">
+        <div className="rounded-[1.5rem] border border-success/30 bg-success/5 p-5 lg:rounded-[2rem] lg:p-6">
+          <div className="flex items-center gap-2 text-base font-bold text-success lg:text-lg">
+            <CheckCircle2 className="h-5 w-5" />
+            {items.length} {items.length === 1 ? "match encontrado" : "matches encontrados"}
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-success/80 lg:text-base">
+            Matches calculados pelo backend com base nas suas preferencias ativas.
+          </p>
+        </div>
+
+        {items.map((match, i) => {
+          const p = match.property;
+
+          return (
+            <motion.div
+              key={match.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.06 }}
+              className="overflow-hidden rounded-[1.5rem] border border-border/50 bg-card shadow-card lg:rounded-[2rem]"
+            >
+              <Link to="/property/$id" params={{ id: p.id }} className="group block">
+                <div className="relative h-48 overflow-hidden lg:h-56">
+                  <img src={p.images[0]} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute left-4 top-4"><MatchBadge value={Math.round(match.score)} /></div>
+                  <div className="absolute bottom-4 left-4 right-4 text-white">
+                    <div className="line-clamp-1 text-xl font-bold lg:text-2xl">{p.title}</div>
+                    <div className="mt-1 text-sm font-medium opacity-90 lg:text-base">{p.neighborhood} - {fmtCurrency(p.price)}</div>
+                  </div>
+                </div>
+              </Link>
+
+              <div className="p-5 lg:p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-success lg:text-xs">
+                      <Building2 className="h-3 w-3 lg:h-4 lg:w-4" /> Match {match.status.toLowerCase()}
+                    </div>
+                    <div className="mt-1 text-xs font-medium text-muted-foreground lg:text-sm">Criado em {formatDateLabel(match.createdAt)}</div>
+                  </div>
+                  <Button className="h-10 rounded-xl font-bold lg:h-12 lg:rounded-2xl lg:text-base" asChild>
+                    <Link to="/property/$id" params={{ id: p.id }}>Ver imovel</Link>
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    );
+  }
+
   if (!matches.length) {
     return (
       <div className="mt-8 lg:mt-16">
         <EmptyState
           icon={Sparkles}
           title="Ainda sem matches"
-          description="Quando houver interesse mútuo entre você e o anunciante, os dados de contato externos serão liberados aqui."
+          description="Quando houver interesse mutuo entre voce e o anunciante, os dados de contato externos serao liberados aqui."
         />
       </div>
     );
@@ -391,10 +654,10 @@ function MatchesList() {
       <div className="rounded-[1.5rem] border border-success/30 bg-success/5 p-5 lg:rounded-[2rem] lg:p-6">
         <div className="flex items-center gap-2 text-base font-bold text-success lg:text-lg">
           <CheckCircle2 className="h-5 w-5" />
-          {matches.length} {matches.length === 1 ? "Match com contato liberado" : "Matches com contato liberado"}
+          {matches.length} {matches.length === 1 ? "match com contato liberado" : "matches com contato liberado"}
         </div>
         <p className="mt-2 text-sm leading-relaxed text-success/80 lg:text-base">
-          Você e os anunciantes demonstraram interesse mútuo. Use os canais abaixo para agendar visitas ou negociar.
+          Voce e os anunciantes demonstraram interesse mutuo. Use os canais abaixo para agendar visitas ou negociar.
         </p>
       </div>
 
@@ -414,19 +677,11 @@ function MatchesList() {
               <div className="relative h-48 overflow-hidden lg:h-56">
                 <img src={p.images[0]} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                {m.isNew && (
-                  <span className="absolute right-4 top-4 rounded-full bg-success px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-success-foreground shadow-float">
-                    Novo Match
-                  </span>
-                )}
-                <div className="absolute left-4 top-4">
-                  <MatchBadge value={p.match} />
-                </div>
+                {m.isNew && <span className="absolute right-4 top-4 rounded-full bg-success px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-success-foreground shadow-float">Novo Match</span>}
+                <div className="absolute left-4 top-4"><MatchBadge value={p.match} /></div>
                 <div className="absolute bottom-4 left-4 right-4 text-white">
                   <div className="line-clamp-1 text-xl font-bold lg:text-2xl">{p.title}</div>
-                  <div className="mt-1 text-sm font-medium opacity-90 lg:text-base">
-                    {p.neighborhood} · {fmtCurrency(p.price)}
-                  </div>
+                  <div className="mt-1 text-sm font-medium opacity-90 lg:text-base">{p.neighborhood} - {fmtCurrency(p.price)}</div>
                 </div>
               </div>
             </Link>
@@ -435,16 +690,12 @@ function MatchesList() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-success lg:text-xs">
-                    <Building2 className="h-3 w-3 lg:h-4 lg:w-4" /> Contato Liberado
+                    <Building2 className="h-3 w-3 lg:h-4 lg:w-4" /> Contato liberado
                   </div>
                   <div className="mt-1 text-xs font-medium text-muted-foreground lg:text-sm">Data do match: {m.matchedAt}</div>
                 </div>
-                <Button
-                  className="h-10 rounded-xl font-bold lg:h-12 lg:rounded-2xl lg:text-base"
-                  onClick={() => toast.success(`Abrindo WhatsApp de ${p.contact.agent}.`)}
-                >
-                  <Send className="mr-2 h-4 w-4" />
-                  Chamar no WhatsApp
+                <Button className="h-10 rounded-xl font-bold lg:h-12 lg:rounded-2xl lg:text-base" onClick={() => toast.success(`Abrindo WhatsApp de ${p.contact.agent}.`)}>
+                  <Send className="mr-2 h-4 w-4" /> Chamar no WhatsApp
                 </Button>
               </div>
 
@@ -452,10 +703,6 @@ function MatchesList() {
                 <ContactRow icon={Send} label="WhatsApp" value={p.contact.whatsapp} accent />
                 <ContactRow icon={Phone} label="Telefone" value={p.contact.phone} />
                 <ContactRow icon={Mail} label="Email" value={p.contact.email} />
-              </div>
-              
-              <div className="mt-4 rounded-xl bg-secondary/40 px-4 py-3 text-xs font-medium text-muted-foreground lg:mt-5 lg:text-sm">
-                Anunciante: <strong className="text-foreground">{p.contact.agent}</strong>
               </div>
             </div>
           </motion.div>
@@ -483,12 +730,7 @@ function ContactRow({
         accent ? "border-primary/30 bg-primary/5" : "border-border/60 bg-card"
       )}
     >
-      <div
-        className={cn(
-          "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
-          accent ? "bg-primary text-primary-foreground shadow-sm" : "bg-secondary text-foreground"
-        )}
-      >
+      <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl", accent ? "bg-primary text-primary-foreground shadow-sm" : "bg-secondary text-foreground")}>
         <Icon className="h-4 w-4 lg:h-5 lg:w-5" />
       </div>
       <div className="min-w-0 flex-1">

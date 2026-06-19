@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Bath,
@@ -16,24 +16,59 @@ import {
 } from "lucide-react";
 import { EmptyState } from "@/components/emoveis/EmptyState";
 import { FilterModal } from "@/components/emoveis/FilterModal";
+import { findManyPreferences } from "@/services/preferences";
 import { Logo } from "@/components/emoveis/Logo";
 import { PropertyCard } from "@/components/emoveis/PropertyCard";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { fmtCurrency, properties } from "@/mock/data";
+import api from "@/services/api";
+import { mapOffersToProperties, readOffersPayload } from "@/lib/offer-mappers";
 import { cn } from "@/lib/utils";
+import { citiesForState, DEFAULT_CITY, DEFAULT_STATE, neighborhoodsForCity, STATE_OPTIONS } from "@/lib/location-options";
 
 export const Route = createFileRoute("/_tabs/explore")({
   component: Explore,
 });
 
 const QUICK_FILTERS = ["Para voce", "Pet friendly", "Ate R$ 1M", "2 quartos", "Cobertura"];
-const NBHD = ["Vila Madalena", "Pinheiros", "Itaim Bibi", "Perdizes", "Vila Olimpia", "Alto de Pinheiros"];
 const TYPES = ["Apartamento", "Casa", "Studio", "Cobertura", "Comercial"];
-const AMENITIES = ["Piscina", "Academia", "Pet friendly", "Portaria", "Varanda", "Mobiliado", "Churrasqueira", "Coworking"];
+const AMENITIES = ["Piscina", "Academia", "Pet friendly", "Portaria", "Varanda", "Mobiliado", "Churrasqueira", "Coworking", "Playground", "Area de servico"];
+
+
+const normalizeLocation = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+const preferenceTypeLabels: Record<string, string> = {
+  APARTAMENTO: "Apartamento",
+  CASA: "Casa",
+  STUDIO: "Studio",
+  COBERTURA: "Cobertura",
+  TERRENO: "Comercial",
+};
+
+const preferenceAmenityLabels: Record<string, string> = {
+  PISCINA: "Piscina",
+  ACADEMIA: "Academia",
+  CHURRASQUEIRA: "Churrasqueira",
+  ELEVADOR: "Portaria",
+  PORTARIA: "Portaria",
+  PORTARIA_24H: "Portaria",
+  MOBILIADO: "Mobiliado",
+  PET_FRIENDLY: "Pet friendly",
+  VARANDA: "Varanda",
+  AREA_SERVICO: "Area de servico",
+  PLAYGROUND: "Playground",
+};
 
 export type ExploreFilters = {
   budget: number[];
+  selectedState: string;
+  selectedCity: string;
   selectedNbhd: string[];
   selectedTypes: string[];
   bedrooms: number;
@@ -45,6 +80,8 @@ export type ExploreFilters = {
 
 export type ExploreFilterActions = {
   setBudget: (value: number[]) => void;
+  setSelectedState: (value: string) => void;
+  setSelectedCity: (value: string) => void;
   setSelectedNbhd: (value: string[]) => void;
   setSelectedTypes: (value: string[]) => void;
   setBedrooms: (value: number) => void;
@@ -54,12 +91,19 @@ export type ExploreFilterActions = {
   setSelectedAmenities: (value: string[]) => void;
 };
 
+type AuthProfile = { name: string; email: string };
+
 function Explore() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeChip, setActiveChip] = useState("Para voce");
+  const [availableProperties, setAvailableProperties] = useState(properties);
+  const [loadingOffers, setLoadingOffers] = useState(false);
+  const [profileName, setProfileName] = useState("voce");
   const [filters, setFilters] = useState<ExploreFilters>({
     budget: [0, 5000000],
+    selectedState: DEFAULT_STATE,
+    selectedCity: DEFAULT_CITY,
     selectedNbhd: [],
     selectedTypes: [],
     bedrooms: 0,
@@ -71,6 +115,8 @@ function Explore() {
 
   const actions: ExploreFilterActions = {
     setBudget: (budget) => setFilters((current) => ({ ...current, budget })),
+    setSelectedState: (selectedState) => setFilters((current) => ({ ...current, selectedState, selectedCity: citiesForState(selectedState)[0] ?? "", selectedNbhd: [] })),
+    setSelectedCity: (selectedCity) => setFilters((current) => ({ ...current, selectedCity, selectedNbhd: [] })),
     setSelectedNbhd: (selectedNbhd) => setFilters((current) => ({ ...current, selectedNbhd })),
     setSelectedTypes: (selectedTypes) => setFilters((current) => ({ ...current, selectedTypes })),
     setBedrooms: (bedrooms) => setFilters((current) => ({ ...current, bedrooms })),
@@ -79,6 +125,82 @@ function Explore() {
     setArea: (area) => setFilters((current) => ({ ...current, area })),
     setSelectedAmenities: (selectedAmenities) => setFilters((current) => ({ ...current, selectedAmenities })),
   };
+
+
+  useEffect(() => {
+    let mounted = true;
+
+    api
+      .get<AuthProfile>("/auth/profile")
+      .then(({ data }) => {
+        if (!mounted) return;
+        const firstName = data.name?.trim().split(/\s+/)[0];
+        setProfileName(firstName || "voce");
+      })
+      .catch(() => undefined);
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    findManyPreferences()
+      .then((preferences) => {
+        if (!mounted || !preferences.length) return;
+        const active = preferences.find((preference) => preference.isActive) ?? preferences[0];
+        const state = active.state || DEFAULT_STATE;
+        const city = active.city || citiesForState(state)[0] || DEFAULT_CITY;
+
+        setFilters((current) => ({
+          ...current,
+          selectedState: state,
+          selectedCity: city,
+          selectedNbhd: active.neighborhoods ?? [],
+          selectedTypes: (active.propertyTypes ?? []).map((type) => preferenceTypeLabels[type]).filter(Boolean),
+          selectedAmenities: (active.desiredAmenities ?? []).map((amenity) => preferenceAmenityLabels[amenity]).filter(Boolean),
+          budget: [Number(active.minPrice ?? current.budget[0]), Number(active.maxPrice ?? current.budget[1])],
+          area: [Number(active.minAreaM2 ?? current.area[0]), Number(active.maxAreaM2 ?? current.area[1])],
+          bedrooms: Number(active.minBedrooms ?? current.bedrooms),
+          bathrooms: Number(active.minBathrooms ?? current.bathrooms),
+          parking: Number(active.minParkingSpots ?? current.parking),
+        }));
+      })
+      .catch(() => undefined);
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadOffers() {
+      try {
+        setLoadingOffers(true);
+        const { data } = await api.get("/offers", {
+          params: { status: "ATIVA", limit: 60 },
+        });
+        const offers = readOffersPayload(data);
+        if (mounted && offers.length) {
+          setAvailableProperties(mapOffersToProperties(offers));
+        }
+      } catch {
+        if (mounted) setAvailableProperties(properties);
+      } finally {
+        if (mounted) setLoadingOffers(false);
+      }
+    }
+
+    void loadOffers();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const applyQuickFilter = (value: string) => {
     setActiveChip(value);
@@ -89,6 +211,8 @@ function Explore() {
     if (value === "Para voce") {
       setFilters({
         budget: [0, 5000000],
+        selectedState: DEFAULT_STATE,
+        selectedCity: DEFAULT_CITY,
         selectedNbhd: [],
         selectedTypes: [],
         bedrooms: 0,
@@ -103,13 +227,18 @@ function Explore() {
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return properties.filter((property) => {
+    return availableProperties.filter((property) => {
       const matchesQuery =
         !normalizedQuery ||
         [property.title, property.neighborhood, property.city, property.type]
           .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+      const normalizedPropertyCity = normalizeLocation(property.city);
+      const looksLikeSaoPaulo = normalizedPropertyCity === "sao paulo" || property.city.toLowerCase().includes("paulo");
+      const propertyState = property.state ?? (looksLikeSaoPaulo ? "SP" : "");
+      const matchesState = !filters.selectedState || propertyState === filters.selectedState;
+      const matchesCity = !filters.selectedCity || normalizedPropertyCity === normalizeLocation(filters.selectedCity) || (looksLikeSaoPaulo && normalizeLocation(filters.selectedCity) === "sao paulo");
       const matchesBudget = property.price >= filters.budget[0] && property.price <= filters.budget[1];
-      const matchesNbhd = !filters.selectedNbhd.length || filters.selectedNbhd.includes(property.neighborhood);
+      const matchesNbhd = !filters.selectedNbhd.length || filters.selectedNbhd.some((neighborhood) => normalizeLocation(neighborhood) === normalizeLocation(property.neighborhood));
       const matchesType = !filters.selectedTypes.length || filters.selectedTypes.includes(property.type);
       const matchesBedrooms = !filters.bedrooms || property.bedrooms >= filters.bedrooms;
       const matchesBathrooms = !filters.bathrooms || property.bathrooms >= filters.bathrooms;
@@ -123,6 +252,8 @@ function Explore() {
 
       return (
         matchesQuery &&
+        matchesState &&
+        matchesCity &&
         matchesBudget &&
         matchesNbhd &&
         matchesType &&
@@ -133,7 +264,7 @@ function Explore() {
         matchesAmenities
       );
     });
-  }, [query, filters]);
+  }, [availableProperties, query, filters]);
 
   const top = filtered[0];
   const rest = filtered.slice(1);
@@ -152,7 +283,7 @@ function Explore() {
         <div className="hidden items-end justify-between gap-6 lg:flex">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Explorar</div>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">Imoveis compativeis para Ana</h1>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight">Imoveis compativeis para {profileName}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Feed inteligente com imoveis, vendedores e corretores alinhados ao perfil.
             </p>
@@ -229,7 +360,7 @@ function Explore() {
                   <div>
                     <h2 className="text-sm font-semibold">Imoveis compativeis</h2>
                     <p className="text-[11px] text-muted-foreground lg:text-xs">
-                      {rest.length} oportunidades priorizadas por compatibilidade
+                      {loadingOffers ? "Carregando ofertas..." : `${rest.length} oportunidades priorizadas por compatibilidade`}
                     </p>
                   </div>
                 </div>
@@ -294,8 +425,31 @@ function FilterSidebar({ filters, actions }: { filters: ExploreFilters; actions:
       </div>
 
       <div className="mt-5 space-y-6">
-        <FilterSection icon={MapPin} title="Regiao">
-          <ChipSelector items={NBHD} selected={filters.selectedNbhd} onToggle={(next) => actions.setSelectedNbhd(next)} />
+        <FilterSection icon={MapPin} title="Localizacao">
+          <div className="space-y-3">
+            <div>
+              <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Estado</div>
+              <SingleChipSelector
+                items={STATE_OPTIONS.map((state) => ({ label: state.value, value: state.value }))}
+                selected={filters.selectedState}
+                onSelect={actions.setSelectedState}
+              />
+            </div>
+            <div>
+              <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Cidade</div>
+              <SingleChipSelector
+                items={citiesForState(filters.selectedState).map((city) => ({ label: city, value: city }))}
+                selected={filters.selectedCity}
+                onSelect={actions.setSelectedCity}
+              />
+            </div>
+            {neighborhoodsForCity(filters.selectedCity).length > 0 && (
+              <div>
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Bairros</div>
+                <ChipSelector items={neighborhoodsForCity(filters.selectedCity)} selected={filters.selectedNbhd} onToggle={(next) => actions.setSelectedNbhd(next)} />
+              </div>
+            )}
+          </div>
         </FilterSection>
 
         <FilterSection icon={Home} title="Tipo">
@@ -333,6 +487,37 @@ function FilterSection({ icon: Icon, title, children }: { icon: any; title: stri
       </div>
       {children}
     </section>
+  );
+}
+
+function SingleChipSelector({
+  items,
+  selected,
+  onSelect,
+}: {
+  items: { label: string; value: string }[];
+  selected: string;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => {
+        const active = selected === item.value;
+        return (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => onSelect(item.value)}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-xs font-medium transition active:scale-95",
+              active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground",
+            )}
+          >
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

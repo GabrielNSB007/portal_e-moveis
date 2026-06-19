@@ -3,10 +3,10 @@ import { fmtCurrency } from "@/mock/data";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
+import { citiesForState, DEFAULT_CITY, DEFAULT_STATE, neighborhoodsForCity, STATE_OPTIONS } from "@/lib/location-options";
 import type { ExploreFilterActions, ExploreFilters } from "@/routes/_tabs.explore";
 
 const TYPES = ["Apartamento", "Casa", "Studio", "Cobertura", "Comercial"];
-const NBHD = ["Vila Madalena", "Pinheiros", "Itaim Bibi", "Perdizes", "Vila Olimpia", "Alto de Pinheiros"];
 const AMENITIES = ["Piscina", "Academia", "Pet friendly", "Portaria", "Varanda", "Mobiliado", "Churrasqueira", "Coworking"];
 
 export function FilterModal({
@@ -24,6 +24,8 @@ export function FilterModal({
 
   const reset = () => {
     actions.setBudget([0, 5000000]);
+    actions.setSelectedState(DEFAULT_STATE);
+    actions.setSelectedCity(DEFAULT_CITY);
     actions.setSelectedNbhd([]);
     actions.setSelectedTypes([]);
     actions.setBedrooms(0);
@@ -56,8 +58,31 @@ export function FilterModal({
         </div>
 
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4">
-          <Section icon={MapPin} title="Bairros">
-            <Chips items={NBHD} selected={filters.selectedNbhd} onToggle={actions.setSelectedNbhd} />
+          <Section icon={MapPin} title="Localizacao">
+            <div className="space-y-4">
+              <div>
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Estado</div>
+                <SingleChips
+                  items={STATE_OPTIONS.map((state) => ({ label: state.value, value: state.value }))}
+                  selected={filters.selectedState}
+                  onSelect={actions.setSelectedState}
+                />
+              </div>
+              <div>
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Cidade</div>
+                <SingleChips
+                  items={citiesForState(filters.selectedState).map((city) => ({ label: city, value: city }))}
+                  selected={filters.selectedCity}
+                  onSelect={actions.setSelectedCity}
+                />
+              </div>
+              {neighborhoodsForCity(filters.selectedCity).length > 0 && (
+                <div>
+                  <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Bairros</div>
+                  <Chips items={neighborhoodsForCity(filters.selectedCity)} selected={filters.selectedNbhd} onToggle={actions.setSelectedNbhd} />
+                </div>
+              )}
+            </div>
           </Section>
 
           <Section icon={Home} title="Tipo">
@@ -121,6 +146,37 @@ function Section({
       </h3>
       {children}
     </section>
+  );
+}
+
+function SingleChips({
+  items,
+  selected,
+  onSelect,
+}: {
+  items: { label: string; value: string }[];
+  selected: string;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => {
+        const active = selected === item.value;
+        return (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => onSelect(item.value)}
+            className={cn(
+              "rounded-full border px-3.5 py-2 text-sm transition active:scale-95",
+              active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground hover:bg-secondary",
+            )}
+          >
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

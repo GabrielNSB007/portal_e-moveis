@@ -7,6 +7,7 @@ import {
 } from "../DTOs/proposalDTO.js";
 import { AppError } from "../errors/AppError.js";
 import { ProposalRepository } from "../repositories/ProposalRepository.js";
+import { prisma } from "../prisma.js";
 
 export class ProposalService {
   constructor(private readonly proposalRepository = new ProposalRepository()) {}
@@ -43,6 +44,16 @@ export class ProposalService {
     }
 
     const proposal = await this.proposalRepository.create(data);
+
+    await prisma.notification.create({
+      data: {
+        userId: proposal.offer.userId,
+        offerId: proposal.offerId,
+        type: "proposal",
+        title: "Nova proposta recebida",
+        description: `${proposal.buyer.name} demonstrou interesse em ${proposal.offer.title}.`,
+      },
+    });
 
     await this.proposalRepository.markRelatedMatchesAsProposalSent(
       data.offerId,
@@ -155,7 +166,29 @@ export class ProposalService {
       throw new AppError("Vendedor só pode aceitar ou recusar proposta", 422);
     }
 
-    return this.proposalRepository.updateStatus(id, data);
+    const updated = await this.proposalRepository.updateStatus(id, data);
+
+    const title = data.status === ProposalStatus.ACEITA
+      ? "Proposta aceita"
+      : data.status === ProposalStatus.RECUSADA
+        ? "Proposta recusada"
+        : "Proposta atualizada";
+
+    const targetUserId = data.status === ProposalStatus.CANCELADA
+      ? updated.offer.userId
+      : updated.buyerId;
+
+    await prisma.notification.create({
+      data: {
+        userId: targetUserId,
+        offerId: updated.offerId,
+        type: data.status === ProposalStatus.ACEITA ? "match" : "proposal",
+        title,
+        description: `${updated.offer.title}: status alterado para ${data.status.toLowerCase()}.`,
+      },
+    });
+
+    return updated;
   }
 
   async cancel(id: string, requesterId: string) {

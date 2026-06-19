@@ -11,6 +11,7 @@ type ListOffersInput = {
   maxPrice?: number;
   page?: number;
   limit?: number;
+  userId?: string;
 };
 
 export class OfferService {
@@ -22,6 +23,13 @@ export class OfferService {
 
   async findAll(filters: ListOffersInput) {
     return this.offerRepository.getMany(filters);
+  }
+
+  async findMine(userId: string, filters: Omit<ListOffersInput, "userId">) {
+    return this.offerRepository.getMany({
+      ...filters,
+      userId,
+    });
   }
 
   async findById(id: string) {

@@ -12,6 +12,7 @@ type ListOffersInput = {
   maxPrice?: number;
   page?: number;
   limit?: number;
+  userId?: string;
 };
 
 const OFFER_INCLUDE = {
@@ -65,10 +66,12 @@ export default class OfferRepository {
     maxPrice,
     page = 1,
     limit = 20,
+    userId,
   }: ListOffersInput) {
     const skip = (page - 1) * limit;
 
     const where: Prisma.OfferWhereInput = {
+      ...(userId ? { userId } : {}),
       ...(city
         ? {
             city: {

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
@@ -20,7 +20,11 @@ import {
   Sparkles,
   Grid3X3,
 } from "lucide-react";
-import { propertyById, properties, fmtCurrency, isMatched } from "@/mock/data";
+import { propertyById, properties, fmtCurrency, isMatched, type Property } from "@/mock/data";
+import api from "@/services/api";
+import { isUuid, mapOfferToProperty, type BackendOffer } from "@/lib/offer-mappers";
+import { removeSavedOffer, saveOffer } from "@/services/saved-offers";
+import { registerOfferView, registerOfferVisit } from "@/services/analytics";
 import { MatchBadge } from "@/components/emoveis/MatchBadge";
 import { PropertyCard } from "@/components/emoveis/PropertyCard";
 import { Button } from "@/components/ui/button";
@@ -32,10 +36,54 @@ export const Route = createFileRoute("/property/$id")({
 function PropertyDetails() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const p = propertyById(id);
+  const fallbackProperty = propertyById(id);
+  const [remoteProperty, setRemoteProperty] = useState<Property | null>(null);
+  const [loadingProperty, setLoadingProperty] = useState(isUuid(id));
   const [fav, setFav] = useState(false);
   const [photo, setPhoto] = useState(0);
   const [interested, setInterested] = useState(false);
+  const [sendingInterest, setSendingInterest] = useState(false);
+  const [savingFavorite, setSavingFavorite] = useState(false);
+  const p = remoteProperty ?? fallbackProperty;
+
+  useEffect(() => {
+    let mounted = true;
+    setPhoto(0);
+    setInterested(false);
+
+    async function loadOffer() {
+      if (!isUuid(id)) {
+        setLoadingProperty(false);
+        setRemoteProperty(null);
+        return;
+      }
+
+      try {
+        setLoadingProperty(true);
+        const { data } = await api.get<BackendOffer>(`/offers/${id}`);
+        if (mounted) setRemoteProperty(mapOfferToProperty(data));
+        registerOfferView(id).catch(() => undefined);
+      } catch {
+        if (mounted) setRemoteProperty(null);
+      } finally {
+        if (mounted) setLoadingProperty(false);
+      }
+    }
+
+    void loadOffer();
+
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
+  if (loadingProperty) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center p-8 text-center text-muted-foreground">
+        Carregando imovel...
+      </div>
+    );
+  }
 
   if (!p) {
     return (
@@ -59,14 +107,63 @@ function PropertyDetails() {
     navigate({ to: "/explore" });
   };
 
-  const toggleFav = () => {
-    setFav((value) => !value);
-    toast.success(fav ? "Removido dos salvos" : "Salvo");
+  const toggleFav = async () => {
+    if (savingFavorite || !p) return;
+
+    if (!isUuid(p.id)) {
+      setFav((value) => !value);
+      toast.success(fav ? "Removido dos salvos" : "Salvo");
+      return;
+    }
+
+    const next = !fav;
+    setFav(next);
+    setSavingFavorite(true);
+
+    try {
+      if (next) {
+        await saveOffer(p.id);
+        toast.success("Salvo");
+      } else {
+        await removeSavedOffer(p.id);
+        toast.success("Removido dos salvos");
+      }
+    } catch (error: any) {
+      setFav(!next);
+      toast.error(error?.response?.data?.error ?? "Nao foi possivel atualizar salvos.");
+    } finally {
+      setSavingFavorite(false);
+    }
   };
 
-  const sendInterest = () => {
-    setInterested(true);
-    toast.success("Interesse enviado ao anunciante!");
+  const sendInterest = async () => {
+    if (sendingInterest) return;
+
+    if (!isUuid(p.id)) {
+      registerOfferVisit(p.id).catch(() => undefined);
+      setInterested(true);
+      toast.success("Interesse enviado ao anunciante!");
+      return;
+    }
+
+    try {
+      setSendingInterest(true);
+      await api.post("/proposals", {
+        offerId: p.id,
+        message: "Tenho interesse neste imovel e gostaria de seguir com a conversa.",
+      });
+      registerOfferVisit(p.id).catch(() => undefined);
+      setInterested(true);
+      toast.success("Interesse enviado ao anunciante!");
+    } catch (error: any) {
+      const message = error?.response?.data?.error ?? "Nao foi possivel enviar o interesse agora.";
+      if (error?.response?.status === 409) {
+        setInterested(true);
+      }
+      toast.error(message);
+    } finally {
+      setSendingInterest(false);
+    }
   };
 
   const ctaButton = matched ? (
@@ -87,11 +184,12 @@ function PropertyDetails() {
     </Button>
   ) : (
     <Button
+      disabled={sendingInterest}
       onClick={sendInterest}
       className="h-12 flex-1 rounded-2xl bg-gradient-primary text-base font-semibold shadow-float transition-transform active:scale-95 lg:h-14 lg:text-lg"
     >
       <Sparkles className="mr-2 h-5 w-5" />
-      Tenho interesse
+      {sendingInterest ? "Enviando..." : "Tenho interesse"}
     </Button>
   );
 
@@ -125,6 +223,7 @@ function PropertyDetails() {
               </button>
               <button
                 onClick={toggleFav}
+                disabled={savingFavorite}
                 className="flex items-center gap-2 rounded-xl bg-secondary px-4 py-2 text-sm font-semibold transition hover:bg-secondary/80"
               >
                 <Bookmark className={fav ? "h-4 w-4 fill-primary text-primary" : "h-4 w-4"} />
@@ -171,6 +270,7 @@ function PropertyDetails() {
               </button>
               <button
                 onClick={toggleFav}
+                disabled={savingFavorite}
                 className="grid h-10 w-10 place-items-center rounded-full bg-white/30 text-white backdrop-blur-md transition-transform active:scale-90"
               >
                 <Bookmark className={fav ? "h-5 w-5 fill-white text-white" : "h-5 w-5"} />
@@ -370,32 +470,6 @@ function PropertyDetails() {
         </div>
 
         <section className="mt-8 px-5 lg:px-0">
-          <h3 className="text-lg font-bold lg:text-xl">Localização</h3>
-          <div className="relative mt-4 h-64 overflow-hidden rounded-3xl border border-border bg-secondary shadow-sm lg:h-80">
-            <div
-              className="absolute inset-0 opacity-60"
-              style={{
-                backgroundImage:
-                  "radial-gradient(circle at 30% 40%, oklch(0.55 0.14 175 / 0.18) 0, transparent 50%), radial-gradient(circle at 70% 60%, oklch(0.72 0.17 175 / 0.18) 0, transparent 50%), linear-gradient(135deg, oklch(0.92 0.02 175), oklch(0.96 0.01 200))",
-              }}
-            />
-            <svg className="absolute inset-0 h-full w-full opacity-40">
-              <defs>
-                <pattern id="grid-full" width="30" height="30" patternUnits="userSpaceOnUse">
-                  <path d="M 30 0 L 0 0 0 30" fill="none" stroke="currentColor" strokeWidth="0.5" />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#grid-full)" />
-            </svg>
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-              <div className="grid h-16 w-16 animate-pulse place-items-center rounded-full bg-gradient-primary shadow-float">
-                <MapPin className="h-8 w-8 text-primary-foreground" />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-8 px-5 lg:px-0">
           <h2 className="text-xl font-bold lg:text-2xl">Imóveis similares</h2>
           <div className="mt-4 flex gap-4 overflow-x-auto pb-3 no-scrollbar lg:grid lg:grid-cols-4 lg:overflow-visible lg:pb-0">
             {similar.map((item) => (
@@ -411,6 +485,7 @@ function PropertyDetails() {
           <div className="flex gap-2">
             <button
               onClick={toggleFav}
+              disabled={savingFavorite}
               className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-border bg-card transition active:scale-95"
               aria-label="Salvar"
             >

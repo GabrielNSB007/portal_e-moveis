@@ -2,7 +2,7 @@ import { type Request, type Response } from "express";
 import { HttpStatusEnum } from "../shared/enums/httpStatusEnum.js";
 import { MessagesEnum } from "../shared/enums/messagesEnum.js";
 import { AuthService } from "../services/AuthService.js";
-import { LoginSchemaType, RegisterSchemaType, UpdateUserSchemaType } from "../schemas/AuthSchema.js";
+import { LoginSchemaType, RegisterSchemaType, RequestPasswordRecoverySchemaType, ResetPasswordSchemaType, UpdateProfileDetailsSchemaType, UpdateUserSchemaType } from "../schemas/AuthSchema.js";
 import { UserRole } from "@prisma/client";
 
 export class AuthController {
@@ -43,11 +43,55 @@ export class AuthController {
         }
     }
 
+
+
+    async requestPasswordRecovery (req: Request<{}, {}, RequestPasswordRecoverySchemaType>, res: Response) {
+        try {
+            const result = await this.authService.requestPasswordRecovery(req.body.email);
+            res.status(HttpStatusEnum.OK).json(result);
+        } catch(err: any) {
+            res.status(HttpStatusEnum.INTERNAL_SERVER_ERROR).send({ error: err.message || MessagesEnum.ERROR_SERVER });
+        }
+    }
+
+    async resetPassword (req: Request<{}, {}, ResetPasswordSchemaType>, res: Response) {
+        try {
+            const { email, code, password } = req.body;
+            const result = await this.authService.resetPasswordWithCode(email, code, password);
+            res.status(HttpStatusEnum.OK).json(result);
+        } catch(err: any) {
+            res.status(HttpStatusEnum.INVALID_CREDENTIALS).send({ error: err.message });
+        }
+    }
+
+    async profileDetails (req: Request, res: Response) {
+        try {
+            const userId = res.locals.userId;
+            const details = await this.authService.profileDetails(userId);
+            res.status(HttpStatusEnum.OK).json(details ?? null);
+        } catch(err: any) {
+            res.status(HttpStatusEnum.INTERNAL_SERVER_ERROR).send({ error: err.message });
+        }
+    }
+
+    async updateProfileDetails (req: Request<{}, {}, UpdateProfileDetailsSchemaType>, res: Response) {
+        try {
+            const userId = res.locals.userId;
+            const details = await this.authService.updateProfileDetails(userId, req.body);
+            res.status(HttpStatusEnum.OK).json(details);
+        } catch(err: any) {
+            if (err.message === MessagesEnum.ERROR_USER_NOT_FOUND) {
+                return res.status(HttpStatusEnum.UNAUTHORIZED).send({ error: err.message });
+            }
+            res.status(HttpStatusEnum.INTERNAL_SERVER_ERROR).send({ error: err.message || MessagesEnum.ERROR_SERVER });
+        }
+    }
+
     async update (req: Request<{}, {}, UpdateUserSchemaType>, res: Response) {
         try {
             const userId = res.locals.userId;
-            const { email, name, password, phone } = req.body;
-            const updatedUser = await this.authService.updateUser(userId, email, name, password, phone);
+            const { email, name, password, currentPassword, phone, userRole } = req.body;
+            const updatedUser = await this.authService.updateUser(userId, email, name, password, currentPassword, phone, userRole);
             res.status(HttpStatusEnum.OK).json(updatedUser);
         } catch(err: any) {
             if (err.message === MessagesEnum.ERROR_USER_NOT_FOUND) {
@@ -55,6 +99,9 @@ export class AuthController {
             }
             if (err.message === MessagesEnum.ERROR_EMAIL_ALREADY_REGISTERED) {
                 return res.status(HttpStatusEnum.UNPROCESSABLE_ENTITY).send({ error: err.message });
+            }
+            if (err.message === MessagesEnum.ERROR_CURRENT_PASSWORD_INVALID) {
+                return res.status(HttpStatusEnum.INVALID_CREDENTIALS).send({ error: err.message, recoveryCodeSent: true });
             }
             res.status(HttpStatusEnum.INTERNAL_SERVER_ERROR).send({ error: err.message || MessagesEnum.ERROR_SERVER });
         }

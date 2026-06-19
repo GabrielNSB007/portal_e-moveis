@@ -59,20 +59,64 @@ enum Amenity {
   AREA_SERVICO
 }
 
-model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      UserRole @default(CLIENTE)
-  phone     String?
+enum DocumentStatus {
+  PENDING
+  REVIEW
+  VERIFIED
+  REJECTED
+}
 
-  offers        Offer[]
-  preferences   Preference[]
-  proposalsSent Proposal[] @relation("BuyerProposals")
+model User {
+  id       String   @id @default(uuid())
+  name     String
+  email    String   @unique
+  password String
+  role     UserRole @default(CLIENTE)
+  phone    String?
+
+  offers                Offer[]
+  preferences           Preference[]
+  proposalsSent         Proposal[]             @relation("BuyerProposals")
+  profile               UserProfile?
+  passwordRecoveryCodes PasswordRecoveryCode[]
+  savedOffers           SavedOffer[]
+  notifications         Notification[]
+  views                 OfferView[]
+  visits                OfferVisit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model UserProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  avatarUrl           String?
+  income              Decimal?       @db.Decimal(12, 2)
+  downPayment         Decimal?       @db.Decimal(12, 2)
+  needsFinancing      Boolean?
+  purchaseType        String?
+  documentId          String?
+  documentStatus      DocumentStatus @default(PENDING)
+  documentSubmittedAt DateTime?
+  verifiedAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PasswordRecoveryCode {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Offer {
@@ -97,9 +141,13 @@ model Offer {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  media     OfferMedia[]
-  matches   Match[]
-  proposals Proposal[]
+  media         OfferMedia[]
+  matches       Match[]
+  proposals     Proposal[]
+  savedBy       SavedOffer[]
+  notifications Notification[]
+  views         OfferView[]
+  visits        OfferVisit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -111,12 +159,12 @@ model Offer {
 }
 
 model OfferMedia {
-  id      String    @id @default(uuid())
-  url     String
-  type    MediaType
+  id   String    @id @default(uuid())
+  url  String
+  type MediaType
 
   offerId String
-  offer   Offer     @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 }
@@ -138,10 +186,10 @@ model Preference {
   minBathrooms    Int?
   minParkingSpots Int?
 
-  propertyTypes   PropertyType[]
-  neighborhoods   String[]
-  city            String
-  state           String
+  propertyTypes    PropertyType[]
+  neighborhoods    String[]
+  city             String
+  state            String
   desiredAmenities Amenity[]
 
   isActive Boolean @default(true)
@@ -173,6 +221,75 @@ model Match {
   @@index([score])
 }
 
+model OfferView {
+  id String @id @default(uuid())
+
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([offerId, createdAt])
+  @@index([userId])
+}
+
+model OfferVisit {
+  id String @id @default(uuid())
+
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  scheduledFor DateTime?
+  status       String    @default("REQUESTED")
+  createdAt    DateTime  @default(now())
+
+  @@index([offerId, createdAt])
+  @@index([userId])
+}
+
+model SavedOffer {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, offerId])
+  @@index([userId])
+  @@index([offerId])
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  offerId String?
+  offer   Offer?  @relation(fields: [offerId], references: [id], onDelete: SetNull)
+
+  type        String
+  title       String
+  description String
+  read        Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, read])
+  @@index([offerId])
+}
+
 model Proposal {
   id String @id @default(uuid())
 
@@ -183,7 +300,7 @@ model Proposal {
   buyer   User   @relation("BuyerProposals", fields: [buyerId], references: [id], onDelete: Cascade)
 
   message String?
-  value   Decimal? @db.Decimal(12, 2)
+  value   Decimal?       @db.Decimal(12, 2)
   status  ProposalStatus @default(PENDENTE)
 
   createdAt DateTime @default(now())

@@ -158,6 +158,10 @@
   ::-webkit-scrollbar-corner {
     background: var(--scrollbar-track);
   }
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear {
+    display: none;
+  }
   h1, h2, h3, h4 {
     font-family: var(--font-display);
     letter-spacing: 0;

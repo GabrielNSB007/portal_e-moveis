@@ -7,6 +7,10 @@ import { fmtCurrency } from "@/mock/data";
 import type { Property } from "@/mock/data";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import api from "@/services/api";
+import { isUuid } from "@/lib/offer-mappers";
+import { removeSavedOffer, saveOffer } from "@/services/saved-offers";
+import { registerOfferVisit } from "@/services/analytics";
 import { MatchBadge } from "./MatchBadge";
 
 type Variant = "feed" | "compact" | "list" | "hero";
@@ -22,18 +26,69 @@ export function PropertyCard({
 }) {
   const [saved, setSaved] = useState(false);
   const [interested, setInterested] = useState(false);
+  const [sendingInterest, setSendingInterest] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const toggleSave = (e: MouseEvent) => {
+  const toggleSave = async (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setSaved((s) => !s);
+    if (saving) return;
+
+    if (!isUuid(property.id)) {
+      setSaved((s) => !s);
+      toast.success(saved ? "Removido dos salvos" : "Imovel salvo");
+      return;
+    }
+
+    const next = !saved;
+    setSaved(next);
+    setSaving(true);
+
+    try {
+      if (next) {
+        await saveOffer(property.id);
+        toast.success("Imovel salvo");
+      } else {
+        await removeSavedOffer(property.id);
+        toast.success("Removido dos salvos");
+      }
+    } catch (error: any) {
+      setSaved(!next);
+      toast.error(error?.response?.data?.error ?? "Nao foi possivel atualizar salvos.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const registerInterest = (e: MouseEvent) => {
+  const registerInterest = async (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setInterested(true);
-    toast.success("Interesse enviado ao anunciante.");
+    if (sendingInterest || interested) return;
+
+    if (!isUuid(property.id)) {
+      registerOfferVisit(property.id).catch(() => undefined);
+      setInterested(true);
+      toast.success("Interesse enviado ao anunciante.");
+      return;
+    }
+
+    try {
+      setSendingInterest(true);
+      await api.post("/proposals", {
+        offerId: property.id,
+        message: "Tenho interesse neste imovel e gostaria de seguir com a conversa.",
+      });
+      setInterested(true);
+      toast.success("Interesse enviado ao anunciante.");
+    } catch (error: any) {
+      const message = error?.response?.data?.error ?? "Nao foi possivel enviar o interesse agora.";
+      if (error?.response?.status === 409) {
+        setInterested(true);
+      }
+      toast.error(message);
+    } finally {
+      setSendingInterest(false);
+    }
   };
 
   const v: Variant = compact ? "compact" : variant;
@@ -67,8 +122,9 @@ export function PropertyCard({
             "self-end shrink-0 rounded-xl px-2.5 py-1.5 text-[11px] font-semibold transition active:scale-95",
             interested ? "bg-success/15 text-success" : "bg-primary text-primary-foreground shadow-soft",
           )}
+          disabled={sendingInterest}
         >
-          {interested ? "Interesse enviado" : "Tenho interesse"}
+          {interested ? "Interesse enviado" : sendingInterest ? "Enviando..." : "Tenho interesse"}
         </button>
       </div>
     );
@@ -126,6 +182,7 @@ export function PropertyCard({
             <button
               onClick={toggleSave}
               aria-label="Salvar"
+              disabled={saving}
               className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-foreground transition active:scale-95"
             >
               <Bookmark className={cn("h-4 w-4", saved && "fill-primary text-primary")} />
@@ -153,9 +210,10 @@ export function PropertyCard({
               "mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition active:scale-[0.98]",
               interested ? "bg-success/15 text-success" : "bg-primary text-primary-foreground shadow-soft",
             )}
+            disabled={sendingInterest}
           >
             <Handshake className="h-4 w-4" />
-            {interested ? "Interesse enviado" : "Tenho interesse"}
+            {interested ? "Interesse enviado" : sendingInterest ? "Enviando..." : "Tenho interesse"}
           </button>
         )}
       </div>
