@@ -1,4 +1,4 @@
-import api from "./api";
+﻿import api from "./api";
 import type { BackendOffer } from "@/lib/offer-mappers";
 
 export type BackendMatch = {
@@ -16,6 +16,7 @@ export type BackendMatch = {
     user?: {
       id: string;
       name?: string | null;
+      email?: string | null;
       phone?: string | null;
       role?: string | null;
     } | null;
@@ -34,3 +35,5 @@ export type MatchesResponse = {
 
 export const listMatches = async () => api.get<MatchesResponse>("/matches", { params: { limit: 50 } });
 export const updateMatchStatus = async (id: string, status: BackendMatch["status"]) => api.patch<BackendMatch>(`/matches/${id}/status`, { status });
+
+

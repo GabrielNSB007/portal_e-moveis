@@ -1,27 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Check,
   CheckCircle2,
   Clock,
   Eye,
   HandCoins,
-  Inbox,
   Mail,
   Phone,
   Send,
-  ShieldCheck,
   Sparkles,
   TrendingUp,
-  X,
   Building2,
 } from "lucide-react";
 import {
   fmtCurrency,
   matches,
   propertyById,
-  receivedInterests,
   sentInterests,
   type InterestStatus,
 } from "@/mock/data";
@@ -55,13 +50,28 @@ const STATUS_META: Record<InterestStatus, { icon: any; label: string; tone: stri
 
 function Interesses() {
   const [tab, setTab] = useState<Tab>("sent");
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [sentProposals, setSentProposals] = useState<UiProposal[]>([]);
   const [receivedProposals, setReceivedProposals] = useState<UiProposal[]>([]);
   const [realMatches, setRealMatches] = useState<UiMatch[]>([]);
   const [proposalsFallback, setProposalsFallback] = useState(false);
   const [matchesFallback, setMatchesFallback] = useState(false);
 
-  useEffect(() => {
+    useEffect(() => {
+    let mounted = true;
+
+    api
+      .get<{ id: string }>("/auth/profile")
+      .then(({ data }) => {
+        if (mounted) setProfileId(data.id);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+useEffect(() => {
     let mounted = true;
 
     async function loadProposals() {
@@ -133,9 +143,18 @@ function Interesses() {
     };
   }, []);
 
+  const buyerReceivedMatches = useMemo(() => {
+    return realMatches.filter((match) => {
+      if (!profileId) return false;
+      return match.preference?.userId === profileId && match.offer?.user?.id !== profileId;
+    });
+  }, [profileId, realMatches]);
+
+  const sellerReceivedCount = receivedProposals.length;
+
   const counts = {
     sent: sentProposals.length || (proposalsFallback ? sentInterests.length : 0),
-    received: receivedProposals.length || (proposalsFallback ? receivedInterests.length : 0),
+    received: buyerReceivedMatches.length,
     matches: realMatches.length || (matchesFallback ? matches.length : 0),
   };
 
@@ -148,7 +167,7 @@ function Interesses() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground lg:text-3xl">Interesses</h1>
             <p className="mt-1 text-xs text-muted-foreground lg:mt-2 lg:text-base">
-              Matchmaking imobiliário sem contato invasivo.
+              Organize o que você enviou, o que chegou pelo matchmaking e os contatos já liberados.
             </p>
           </div>
 
@@ -157,7 +176,7 @@ function Interesses() {
               Enviados
             </TabBtn>
             <TabBtn active={tab === "received"} onClick={() => setTab("received")} count={counts.received}>
-              Recebidos
+              Recebidas
             </TabBtn>
             <TabBtn active={tab === "matches"} onClick={() => setTab("matches")} count={counts.matches}>
               Matches
@@ -166,9 +185,10 @@ function Interesses() {
         </div>
       </header>
 
-      {/* CONTEÚDO PRINCIPAL (Grid no Desktop) */}
+      {/* CONTEUDO PRINCIPAL (Grid no Desktop) */}
       <div className="mt-2 p-5 lg:mt-0 lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:p-0 xl:grid-cols-[1fr_400px] xl:gap-12">
         <div className="min-w-0">
+          {sellerReceivedCount > 0 && <SellerReceivedCallout count={sellerReceivedCount} />}
           <AnimatePresence mode="wait">
             <motion.div
               key={tab}
@@ -178,14 +198,14 @@ function Interesses() {
               transition={{ duration: 0.2 }}
             >
               {tab === "sent" && <SentList proposals={sentProposals} useFallback={proposalsFallback} />}
-              {tab === "received" && <ReceivedList proposals={receivedProposals} useFallback={proposalsFallback} />}
+              {tab === "received" && <ReceivedBuyerList items={buyerReceivedMatches} useFallback={matchesFallback} />}
               {tab === "matches" && <MatchesList items={realMatches} useFallback={matchesFallback} />}
             </motion.div>
           </AnimatePresence>
         </div>
         
         {/* SIDEBAR DESKTOP */}
-        <InterestDetailPanel tab={tab} counts={counts} sentProposals={sentProposals} realMatches={realMatches} useFallback={proposalsFallback || matchesFallback} />
+        <InterestDetailPanel tab={tab} counts={counts} sentProposals={sentProposals} receivedMatches={buyerReceivedMatches} realMatches={realMatches} sellerReceivedCount={sellerReceivedCount} useFallback={proposalsFallback || matchesFallback} />
       </div>
     </div>
   );
@@ -227,19 +247,25 @@ function InterestDetailPanel({
   tab,
   counts,
   sentProposals,
+  receivedMatches,
   realMatches,
+  sellerReceivedCount,
   useFallback,
 }: {
   tab: Tab;
   counts: { sent: number; received: number; matches: number };
   sentProposals: UiProposal[];
+  receivedMatches: UiMatch[];
   realMatches: UiMatch[];
+  sellerReceivedCount: number;
   useFallback: boolean;
 }) {
   const featured =
     tab === "matches"
       ? realMatches[0]?.property ?? (useFallback ? propertyById(matches[0]?.propertyId) : undefined)
-      : sentProposals[0]?.property ?? (useFallback ? propertyById(sentInterests[0]?.propertyId) : undefined);
+      : tab === "received"
+        ? receivedMatches[0]?.property ?? (useFallback ? propertyById(matches[0]?.propertyId) : undefined)
+        : sentProposals[0]?.property ?? (useFallback ? propertyById(sentInterests[0]?.propertyId) : undefined);
 
   return (
     <aside className="sticky top-8 hidden h-fit space-y-6 lg:block">
@@ -250,11 +276,12 @@ function InterestDetailPanel({
         </div>
         <div className="mt-5 grid grid-cols-3 gap-3">
           <Metric label="Enviados" value={counts.sent} />
-          <Metric label="Recebidos" value={counts.received} />
+          <Metric label="Recebidas" value={counts.received} />
           <Metric label="Matches" value={counts.matches} />
         </div>
+        {sellerReceivedCount > 0 && <SellerReceivedCallout count={sellerReceivedCount} compact />}
         <div className="mt-5 rounded-2xl bg-secondary/50 p-4 text-xs leading-relaxed text-muted-foreground">
-          <strong className="text-foreground">Dica:</strong> Matches são a evolução de um interesse mútuo. Os dados de contato dos proprietários ou corretores só aparecem quando os dois lados confirmam na plataforma.
+          <strong className="text-foreground">Dica:</strong> Matches s&atilde;o a evolu&ccedil;&atilde;o de um interesse m&uacute;tuo. Os dados de contato dos propriet&aacute;rios ou corretores s&oacute; aparecem quando os dois lados confirmam na plataforma.
         </div>
       </div>
 
@@ -271,11 +298,11 @@ function InterestDetailPanel({
             <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Destaque do Pipeline</div>
             <h3 className="mt-1 line-clamp-1 text-lg font-bold text-foreground">{featured.title}</h3>
             <p className="mt-1 text-sm font-medium text-muted-foreground">
-              {featured.neighborhood} · {fmtCurrency(featured.price)}
+              {featured.neighborhood}{" \u00b7 "}{fmtCurrency(featured.price)}
             </p>
             <Button asChild className="mt-6 h-12 w-full rounded-2xl font-bold">
               <Link to="/property/$id" params={{ id: featured.id }}>
-                Ver página do imóvel
+                Ver p&aacute;gina do im&oacute;vel
               </Link>
             </Button>
           </div>
@@ -291,6 +318,29 @@ function Metric({ label, value }: { label: string; value: number }) {
       <div className="text-2xl font-bold text-foreground">{value}</div>
       <div className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
+  );
+}
+
+function SellerReceivedCallout({ count, compact }: { count: number; compact?: boolean }) {
+  return (
+    <Link
+      to="/agent"
+      className={cn(
+        "mb-5 flex items-center justify-between gap-4 rounded-[1.5rem] border border-primary/25 bg-primary/10 p-4 text-left transition-colors hover:border-primary/45 hover:bg-primary/15",
+        compact && "mb-0 mt-5",
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground">
+          <Building2 className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-bold text-foreground">{count} {count === 1 ? "interesse recebido" : "interesses recebidos"}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">Gerencie propostas dos seus an&uacute;ncios na &Aacute;rea do Anunciante.</div>
+        </div>
+      </div>
+      <span className="shrink-0 rounded-full bg-card px-3 py-2 text-xs font-bold text-primary shadow-sm">Abrir</span>
+    </Link>
   );
 }
 
@@ -372,7 +422,7 @@ function SentList({ proposals, useFallback }: { proposals: UiProposal[]; useFall
       <EmptyState
         icon={Send}
         title="Nenhum interesse enviado"
-        description="Explore os imoveis compativeis com seu perfil e demonstre interesse quando encontrar o lar ideal."
+        description={"Explore os im\u00f3veis compat\u00edveis com seu perfil e demonstre interesse quando encontrar o lar ideal."}
       />
     </div>
   );
@@ -385,7 +435,7 @@ function MockSentList() {
         <EmptyState
           icon={Send}
           title="Nenhum interesse enviado"
-          description="Explore os imóveis compatíveis com seu perfil e demonstre interesse quando encontrar o lar ideal."
+          description={"Explore os im\u00f3veis compat\u00edveis com seu perfil e demonstre interesse quando encontrar o lar ideal."}
         />
       </div>
     );
@@ -429,7 +479,7 @@ function MockSentList() {
                     </span>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground lg:text-sm">
-                    {p.neighborhood} · enviado {s.sentAt}
+                    {p.neighborhood}{" \u00b7 "} enviado {s.sentAt}
                   </div>
                   <div className="mt-2 text-lg font-bold text-foreground lg:mt-3 lg:text-xl">{fmtCurrency(p.price)}</div>
                 </div>
@@ -468,131 +518,62 @@ function MockSentList() {
 
 
 
-async function updateProposalStatus(id: string, status: "ACEITA" | "RECUSADA" | "CANCELADA") {
-  await api.patch(`/proposals/${id}/status`, { status });
-}
+function ReceivedBuyerList({ items, useFallback }: { items: UiMatch[]; useFallback: boolean }) {
+  const fallbackMatches = useFallback ? matches : [];
 
-function ReceivedList({ proposals, useFallback }: { proposals: UiProposal[]; useFallback: boolean }) {
-  if (proposals.length) {
-    return (
-      <div className="space-y-4 lg:space-y-5">
-        {proposals.map((proposal, i) => {
-          const p = proposal.property;
-          const buyerName = proposal.buyer?.name ?? "Comprador interessado";
-
-          return (
-            <motion.div
-              key={proposal.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="overflow-hidden rounded-[1.5rem] border border-border/50 bg-card shadow-sm transition-shadow hover:shadow-md lg:rounded-[2rem]"
-            >
-              <Link to="/property/$id" params={{ id: p.id }} className="group block">
-                <div className="relative h-40 overflow-hidden lg:h-48">
-                  <img src={p.images[0]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  <div className="absolute left-4 top-4"><MatchBadge value={p.match} /></div>
-                  <div className="absolute bottom-4 left-4 right-4 text-white">
-                    <div className="line-clamp-1 text-lg font-bold lg:text-xl">{p.title}</div>
-                    <div className="mt-1 text-xs font-medium opacity-90 lg:text-sm">{p.neighborhood} - {fmtCurrency(p.price)}</div>
-                  </div>
-                </div>
-              </Link>
-
-              <div className="p-5 lg:p-6">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-primary lg:text-xs">
-                  <Sparkles className="h-4 w-4" />
-                  Proposta recebida de {buyerName}
-                </div>
-                <p className="mt-2 text-sm leading-relaxed text-foreground lg:text-base">
-                  {proposal.message ?? "Comprador demonstrou interesse neste imovel."}
-                </p>
-                <p className="mt-2 text-[11px] font-medium text-muted-foreground lg:text-xs">Recebido: {formatDateLabel(proposal.createdAt)}</p>
-
-                <div className="mt-5 flex gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      updateProposalStatus(proposal.id, "RECUSADA")
-                        .then(() => toast("Proposta recusada."))
-                        .catch((error: any) => toast.error(error?.response?.data?.error ?? "Nao foi possivel recusar."));
-                    }}
-                    className="h-12 flex-1 rounded-xl text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive lg:rounded-2xl"
-                  >
-                    <X className="mr-2 h-4 w-4" /> Recusar
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      updateProposalStatus(proposal.id, "ACEITA")
-                        .then(() => toast.success("Proposta aceita."))
-                        .catch((error: any) => toast.error(error?.response?.data?.error ?? "Nao foi possivel aceitar."));
-                    }}
-                    className="h-12 flex-1 rounded-xl bg-primary font-bold shadow-soft transition-transform active:scale-95 lg:rounded-2xl"
-                  >
-                    <Check className="mr-2 h-4 w-4" /> Aceitar
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  if (!useFallback || !receivedInterests.length) {
+  if (!items.length && !fallbackMatches.length) {
     return (
       <div className="mt-8 lg:mt-16">
         <EmptyState
-          icon={Inbox}
-          title="Nada recebido ainda"
-          description="Quando um anunciante demonstrar interesse ou uma proposta chegar, ela aparecera aqui."
+          icon={Sparkles}
+          title="Nenhuma oportunidade recebida"
+          description={"Quando o matchmaking encontrar im\u00f3veis alinhados ao seu perfil, eles aparecem aqui como propostas recebidas."}
         />
       </div>
     );
   }
 
-  return (
-    <div className="space-y-4 lg:space-y-6">
-      <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 lg:rounded-[1.5rem] lg:p-5">
-        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-        <p className="text-sm font-medium text-primary/80 lg:text-base">
-          Seus dados seguem protegidos. O contato externo so aparece quando houver match ou proposta aceita.
-        </p>
-      </div>
+  if (!items.length) {
+    return <MockReceivedBuyerList />;
+  }
 
-      {receivedInterests.map((r, i) => {
-        const p = propertyById(r.propertyId);
-        if (!p) return null;
+  return (
+    <div className="space-y-4 lg:space-y-5">
+      {items.map((match, i) => {
+        const p = match.property;
+        const seller = match.offer.user?.name ?? "Anunciante";
 
         return (
           <motion.div
-            key={r.id}
+            key={match.id}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="overflow-hidden rounded-[1.5rem] border border-border/50 bg-card shadow-sm transition-shadow hover:shadow-md lg:rounded-[2rem]"
           >
-            <Link to="/property/$id" params={{ id: p.id }} className="group block">
-              <div className="relative h-40 overflow-hidden lg:h-48">
-                <img src={p.images[0]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute left-4 top-4"><MatchBadge value={p.match} /></div>
-                <div className="absolute bottom-4 left-4 right-4 text-white">
-                  <div className="line-clamp-1 text-lg font-bold lg:text-xl">{p.title}</div>
-                  <div className="mt-1 text-xs font-medium opacity-90 lg:text-sm">{p.neighborhood} - {fmtCurrency(p.price)}</div>
+            <Link
+              to="/property/$id"
+              params={{ id: p.id }}
+              className="group block overflow-hidden rounded-[1.5rem] border border-primary/20 bg-card shadow-sm transition-all hover:border-primary/45 hover:shadow-md active:scale-[0.99] lg:rounded-[2rem]"
+            >
+              <div className="flex gap-4 p-4 lg:p-5">
+                <div className="relative shrink-0 overflow-hidden rounded-2xl lg:h-28 lg:w-28 lg:rounded-[1.25rem]">
+                  <img src={p.images[0]} alt="" className="h-20 w-20 object-cover transition-transform duration-500 group-hover:scale-110 lg:h-full lg:w-full" />
+                </div>
+                <div className="min-w-0 flex-1 pt-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="line-clamp-1 text-base font-bold lg:text-lg">{p.title}</h3>
+                    <MatchBadge value={Math.round(match.score)} />
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground lg:text-sm">
+                    {seller} encontrou compatibilidade com sua busca.
+                  </div>
+                  <div className="mt-2 text-lg font-bold text-foreground lg:mt-3 lg:text-xl">{fmtCurrency(p.price)}</div>
+                  <div className="mt-3 inline-flex rounded-full bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary">
+                    Recebida via matchmaking
+                  </div>
                 </div>
               </div>
             </Link>
-            <div className="p-5 lg:p-6">
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-primary lg:text-xs">
-                <Sparkles className="h-4 w-4" />
-                {r.from === "Sistema" ? "Sugestao do algoritmo" : "Anunciante interessado"}
-              </div>
-              <p className="mt-2 text-sm leading-relaxed text-foreground lg:text-base">{r.reason}</p>
-              <p className="mt-2 text-[11px] font-medium text-muted-foreground lg:text-xs">Recebido: {r.receivedAt}</p>
-            </div>
           </motion.div>
         );
       })}
@@ -600,6 +581,36 @@ function ReceivedList({ proposals, useFallback }: { proposals: UiProposal[]; use
   );
 }
 
+function MockReceivedBuyerList() {
+  return (
+    <div className="space-y-4 lg:space-y-5">
+      {matches.map((match, i) => {
+        const p = propertyById(match.propertyId);
+        if (!p) return null;
+
+        return (
+          <motion.div key={match.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+            <Link to="/property/$id" params={{ id: p.id }} className="group block overflow-hidden rounded-[1.5rem] border border-primary/20 bg-card shadow-sm transition-all hover:border-primary/45 hover:shadow-md active:scale-[0.99] lg:rounded-[2rem]">
+              <div className="flex gap-4 p-4 lg:p-5">
+                <div className="relative shrink-0 overflow-hidden rounded-2xl lg:h-28 lg:w-28 lg:rounded-[1.25rem]">
+                  <img src={p.images[0]} alt="" className="h-20 w-20 object-cover transition-transform duration-500 group-hover:scale-110 lg:h-full lg:w-full" />
+                </div>
+                <div className="min-w-0 flex-1 pt-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="line-clamp-1 text-base font-bold lg:text-lg">{p.title}</h3>
+                    <MatchBadge value={p.match} />
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground lg:text-sm">Sugest&atilde;o recebida pelo matchmaking.</div>
+                  <div className="mt-2 text-lg font-bold text-foreground lg:mt-3 lg:text-xl">{fmtCurrency(p.price)}</div>
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
 function MatchesList({ items, useFallback }: { items: UiMatch[]; useFallback: boolean }) {
   if (items.length) {
     return (
@@ -646,7 +657,7 @@ function MatchesList({ items, useFallback }: { items: UiMatch[]; useFallback: bo
                     <div className="mt-1 text-xs font-medium text-muted-foreground lg:text-sm">Criado em {formatDateLabel(match.createdAt)}</div>
                   </div>
                   <Button className="h-10 rounded-xl font-bold lg:h-12 lg:rounded-2xl lg:text-base" asChild>
-                    <Link to="/property/$id" params={{ id: p.id }}>Ver imovel</Link>
+                    <Link to="/property/$id" params={{ id: p.id }}>Ver im&oacute;vel</Link>
                   </Button>
                 </div>
               </div>
@@ -663,7 +674,7 @@ function MatchesList({ items, useFallback }: { items: UiMatch[]; useFallback: bo
         <EmptyState
           icon={Sparkles}
           title="Ainda sem matches"
-          description="Quando houver interesse mutuo entre voce e o anunciante, os dados de contato externos serao liberados aqui."
+          description={"Quando houver interesse m\u00fatuo entre voc\u00ea e o anunciante, os dados de contato externos ser\u00e3o liberados aqui."}
         />
       </div>
     );
@@ -677,7 +688,7 @@ function MatchesList({ items, useFallback }: { items: UiMatch[]; useFallback: bo
           {matches.length} {matches.length === 1 ? "match com contato liberado" : "matches com contato liberado"}
         </div>
         <p className="mt-2 text-sm leading-relaxed text-success/80 lg:text-base">
-          Voce e os anunciantes demonstraram interesse mutuo. Use os canais abaixo para agendar visitas ou negociar.
+          Voc&ecirc; e os anunciantes demonstraram interesse m&uacute;tuo. Use os canais abaixo para agendar visitas ou negociar.
         </p>
       </div>
 
@@ -760,3 +771,4 @@ function ContactRow({
     </div>
   );
 }
+

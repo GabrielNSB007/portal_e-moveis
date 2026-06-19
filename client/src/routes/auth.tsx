@@ -193,7 +193,7 @@ function Auth() {
             <Logo />
           </div>
 
-          <div className="min-h-[520px] rounded-[2rem] border border-border bg-card p-5 shadow-card sm:p-7">
+          <form onSubmit={(event) => { event.preventDefault(); void submit(); }} className="min-h-[520px] rounded-[2rem] border border-border bg-card p-5 shadow-card sm:p-7">
             <div className="mb-6">
               <div className="grid grid-cols-2 rounded-2xl bg-secondary p-1">
                 <ModeButton active={mode === "login"} onClick={() => setMode("login")}>
@@ -309,14 +309,14 @@ function Auth() {
             </div>
 
             <Button
-              onClick={submit}
+              type="submit"
               disabled={isSubmitting}
               className="mt-6 h-12 w-full rounded-2xl bg-gradient-primary text-base font-bold shadow-soft"
             >
               {isSubmitting ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
               <ArrowRight className="h-4 w-4" />
             </Button>
-          </div>
+          </form>
         </div>
       </main>
 
@@ -399,7 +399,7 @@ function PasswordRecoveryModal({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-3xl border border-border bg-card p-5 shadow-card">
+      <form onSubmit={(event) => { event.preventDefault(); sent ? onReset() : onRequestCode(); }} className="w-full max-w-md rounded-3xl border border-border bg-card p-5 shadow-card">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-xl font-bold">Recuperar senha</h3>
@@ -426,11 +426,11 @@ function PasswordRecoveryModal({
 
         <div className="mt-6 flex gap-3">
           <Button type="button" variant="outline" onClick={onClose} className="h-11 flex-1 rounded-2xl" disabled={loading}>Cancelar</Button>
-          <Button type="button" onClick={sent ? onReset : onRequestCode} className="h-11 flex-1 rounded-2xl bg-gradient-primary font-bold" disabled={loading}>
+          <Button type="submit" className="h-11 flex-1 rounded-2xl bg-gradient-primary font-bold" disabled={loading}>
             {loading ? "Aguarde..." : sent ? "Redefinir" : "Enviar código"}
           </Button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

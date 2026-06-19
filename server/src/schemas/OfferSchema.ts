@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 import { Amenity, MediaType, OfferStatus, PropertyType } from "@prisma/client";
 
 const idSchema = z.string().uuid("ID inválido");
@@ -27,7 +27,7 @@ const integerSchema = z.coerce
   .nonnegative("O valor não pode ser negativo");
 
 const mediaSchema = z.object({
-  url: z.string().url("URL da mídia inválida"),
+  url: mediaUrlSchema,
   type: z.nativeEnum(MediaType),
 });
 
@@ -87,3 +87,4 @@ export const ListOffersSchema = z.object({
 export type CreateOfferBody = z.infer<typeof CreateOfferSchema>["body"];
 export type UpdateOfferBody = z.infer<typeof UpdateOfferSchema>["body"];
 export type ListOffersQuery = z.infer<typeof ListOffersSchema>["query"];
+

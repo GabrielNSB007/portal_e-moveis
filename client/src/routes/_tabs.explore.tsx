@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -106,7 +106,6 @@ function Explore() {
   const [availableProperties, setAvailableProperties] = useState<ReturnType<typeof mapOffersToProperties>>([]);
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [profileName, setProfileName] = useState("voce");
-  const [profileId, setProfileId] = useState<string | null>(null);
   const [filters, setFilters] = useState<ExploreFilters>({
     budget: [0, 5000000],
     selectedState: DEFAULT_STATE,
@@ -140,7 +139,6 @@ function Explore() {
       .then(({ data }) => {
         if (!mounted) return;
         const firstName = data.name?.trim().split(/\s+/)[0];
-        setProfileId(data.id);
         setProfileName(firstName || "voce");
       })
       .catch(() => undefined);
@@ -209,20 +207,32 @@ function Explore() {
   }, []);
 
 
-  const filtered = useMemo(() => {
+  const locationProperties = useMemo(() => {
     const normalizedQuery = normalizeLocation(query);
+    const selectedCity = normalizeLocation(filters.selectedCity);
 
     return availableProperties.filter((property) => {
-      const isOwnOffer = Boolean(profileId && property.ownerId === profileId);
       const matchesQuery =
         !normalizedQuery ||
         [property.title, property.neighborhood, property.city, property.type]
           .some((value) => normalizeLocation(String(value)).includes(normalizedQuery));
       const normalizedPropertyCity = normalizeLocation(property.city);
-      const looksLikeSaoPaulo = normalizedPropertyCity === "sao paulo" || property.city.toLowerCase().includes("paulo");
-      const propertyState = property.state ?? (looksLikeSaoPaulo ? "SP" : "");
+      const propertyState = property.state ?? "";
       const matchesState = !filters.selectedState || propertyState === filters.selectedState;
-      const matchesCity = !filters.selectedCity || normalizedPropertyCity === normalizeLocation(filters.selectedCity) || (looksLikeSaoPaulo && normalizeLocation(filters.selectedCity) === "sao paulo");
+      const matchesCity = !filters.selectedCity || normalizedPropertyCity === selectedCity;
+
+      return matchesQuery && matchesState && matchesCity;
+    });
+  }, [availableProperties, query, filters.selectedState, filters.selectedCity]);
+
+  const purposeAvailability = useMemo(() => {
+    const sale = locationProperties.filter((property) => property.listingPurpose === "SALE").length;
+    const rent = locationProperties.filter((property) => property.listingPurpose === "RENT").length;
+    return { sale, rent, selected: listingPurpose === "SALE" ? sale : rent, opposite: listingPurpose === "SALE" ? rent : sale };
+  }, [locationProperties, listingPurpose]);
+
+  const filtered = useMemo(() => {
+    const strict = locationProperties.filter((property) => {
       const matchesPurpose = property.listingPurpose === listingPurpose;
       const matchesBudget = property.price >= filters.budget[0] && property.price <= filters.budget[1];
       const matchesType = !filters.selectedTypes.length || filters.selectedTypes.includes(property.type);
@@ -237,11 +247,7 @@ function Explore() {
         );
 
       return (
-        !isOwnOffer &&
-        matchesQuery &&
         matchesPurpose &&
-        matchesState &&
-        matchesCity &&
         matchesBudget &&
         matchesType &&
         matchesBedrooms &&
@@ -251,8 +257,18 @@ function Explore() {
         matchesAmenities
       );
     });
-  }, [availableProperties, query, filters, listingPurpose, profileId]);
 
+    if (strict.length) return strict;
+
+    const samePurposeAndLocation = locationProperties.filter((property) => property.listingPurpose === listingPurpose);
+    if (samePurposeAndLocation.length) return samePurposeAndLocation;
+
+    return locationProperties;
+  }, [locationProperties, filters, listingPurpose]);
+
+  const showingOppositePurpose = purposeAvailability.selected === 0 && purposeAvailability.opposite > 0;
+  const requestedPurposeLabel = listingPurpose === "SALE" ? "compra" : "aluguel";
+  const oppositePurposeLabel = listingPurpose === "SALE" ? "aluguel" : "compra";
   const top = filtered[0];
   const rest = filtered.slice(1);
 
@@ -317,6 +333,19 @@ function Explore() {
         </aside>
 
         <div className="min-w-0">
+          {showingOppositePurpose && (
+            <div className="mx-4 mt-4 rounded-3xl border border-warning/30 bg-warning/10 p-4 text-sm lg:mx-0 lg:mb-5 lg:mt-0">
+              <div className="flex items-start gap-3">
+                <Coins className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+                <div>
+                  <div className="font-bold text-foreground">Sem imóveis para {requestedPurposeLabel} em {filters.selectedCity}</div>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground lg:text-sm">
+                    Encontramos {purposeAvailability.opposite} {purposeAvailability.opposite === 1 ? "opção" : "opções"} para {oppositePurposeLabel} nessa região. Mantivemos a cidade selecionada e exibimos essas opções para não deixar o feed vazio.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           {!filtered.length ? (
             <div className="mt-10 lg:mt-20">
               <EmptyState icon={Search} title="Nenhum imovel encontrado" description="Tente ajustar regiao, tipo, preco ou estrutura." />
@@ -593,6 +622,11 @@ function Stepper({ label, value, setValue, icon: Icon }: { label: string; value:
     </div>
   );
 }
+
+
+
+
+
 
 
 

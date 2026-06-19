@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   Bath,
@@ -35,6 +35,8 @@ import api from "@/services/api";
 import { mapOffersToProperties } from "@/lib/offer-mappers";
 import { listSavedOffers } from "@/services/saved-offers";
 import { listMatches } from "@/services/matches";
+import { findManyPreferences } from "@/services/preferences";
+import type { ReadDeletePreference } from "@/types/preferences";
 import type { BackendProposal } from "@/lib/offer-mappers";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -133,8 +135,8 @@ function Profile() {
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>({ name: "", email: "", phone: "", password: "", currentPassword: "" });
   const [savedProperties, setSavedProperties] = useState<Property[]>([]);
   const [savedFallback, setSavedFallback] = useState(false);
-  const [profileStats, setProfileStats] = useState({ interests: user.stats.interests, matches: user.stats.matches, viewed: user.stats.viewed });
-  const p = user.preferences;
+  const [profileStats, setProfileStats] = useState({ interests: 0, matches: 0, viewed: 0 });
+  const [activePreference, setActivePreference] = useState<ReadDeletePreference | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -173,7 +175,7 @@ function Profile() {
         setProfileStats({
           interests: proposalsResponse.data.length,
           matches: matchesResponse.data.pagination?.total ?? matchesResponse.data.items.length,
-          viewed: user.stats.viewed,
+          viewed: 0,
         });
       })
       .catch(() => undefined);
@@ -183,6 +185,23 @@ function Profile() {
     };
   }, []);
 
+
+  useEffect(() => {
+    let active = true;
+
+    findManyPreferences()
+      .then((preferences) => {
+        if (!active) return;
+        setActivePreference(preferences.find((preference) => preference.isActive) ?? preferences[0] ?? null);
+      })
+      .catch(() => {
+        if (active) setActivePreference(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
   useEffect(() => {
     let active = true;
 
@@ -239,12 +258,16 @@ function Profile() {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("") || "EU";
-  const income = extras.income ?? user.income;
-  const needsFinancing = extras.needsFinancing ?? user.needsFinancing;
+  const hasIncome = typeof extras.income === "number" && extras.income > 0;
+  const hasFinanceGoal = typeof extras.needsFinancing === "boolean" || Boolean(extras.purchaseType);
+  const incomeLabel = hasIncome ? fmtCurrency(extras.income!) : "Não informado";
+  const objectiveLabel = hasFinanceGoal ? (extras.needsFinancing ? "Compra financiada" : "Aluguel ou investimento") : "Não informado";
+  const securityLabel = extras.identityVerified ? "Verificado" : extras.documentStatus === "review" ? "Em análise" : "Pendente";
   const completion = Math.min(
     100,
-    55 + (extras.avatar ? 15 : 0) + (extras.income ? 15 : 0) + (extras.documentStatus ? 15 : 0),
+    35 + (extras.avatar ? 20 : 0) + (hasIncome ? 20 : 0) + (hasFinanceGoal ? 10 : 0) + (extras.documentStatus ? 15 : 0),
   );
+  const preferenceCards = buildPreferenceCards(activePreference);
   const isSeller = profile?.role === "VENDEDOR";
 
   const openProfileEditor = () => {
@@ -386,9 +409,9 @@ function Profile() {
 
       {/* COMPLETENESS CARD (Sobreposto) */}
       <div className="relative z-10 -mt-12 px-5 lg:-mt-14 lg:px-10">
-        <div className="mx-auto rounded-3xl border border-border/50 bg-card p-5 shadow-lg lg:p-6">
+        <div className="mx-auto rounded-3xl border border-primary/35 bg-gradient-to-br from-primary/15 via-card to-card p-5 shadow-xl ring-1 ring-primary/10 lg:p-6">
           <div className="flex items-center justify-between text-xs lg:text-sm">
-            <span className="font-bold text-foreground">Completude do perfil</span>
+            <span className="font-bold text-foreground">Completar perfil</span>
             <span className="font-bold text-primary">{completion}%</span>
           </div>
           <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-secondary lg:h-3">
@@ -398,7 +421,7 @@ function Profile() {
             />
           </div>
           <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground lg:text-xs">
-            Complete seus dados de renda e financiamento para receber recomendações ainda mais precisas no matchmaking.
+            Complete apenas dados reais. Campos vazios ficam pendentes e não entram no matchmaking financeiro.
           </p>
         </div>
       </div>
@@ -424,16 +447,13 @@ function Profile() {
               </Button>
             }
           >
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4">
-              <PrefCard icon={Coins} label="Faixa de preço" value={`${fmtCurrency(p.budget[0]).replace('R$', '')} - ${fmtCurrency(p.budget[1]).replace('R$', '')}`} />
-              <PrefCard icon={MapPin} label="Bairros" value={p.neighborhoods.join(", ")} />
-              <PrefCard icon={BedDouble} label="Quartos" value={`${p.bedrooms}+`} />
-              <PrefCard icon={Bath} label="Banheiros" value={`${p.bathrooms}+`} />
-              <PrefCard icon={Home} label="Tipo imóvel" value={p.types.join(", ")} />
-              <PrefCard icon={Car} label="Garagem" value={`${p.parking}+`} />
-              <PrefCard icon={PawPrint} label="Pet friendly" value={p.petFriendly ? "Sim" : "Não"} />
-              <PrefCard icon={TrainFront} label="Próximo de" value={p.nearby.join(", ")} />
-            </div>
+            {preferenceCards.length ? (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4">
+                {preferenceCards.map((card) => <PrefCard key={card.label} icon={card.icon} label={card.label} value={card.value} />)}
+              </div>
+            ) : (
+              <EmptyProfileState onClick={() => navigate({ to: "/onboarding" })} />
+            )}
           </Section>
 
           <Section
@@ -456,13 +476,17 @@ function Profile() {
               <PrefCard icon={Pencil} label="Nome" value={displayName.split(" ")[0]} />
               <PrefCard icon={Mail} label="Email" value="Oculto" hint="Privado" />
               <PrefCard icon={Phone} label="Telefone" value={displayPhone} />
-              <PrefCard icon={Coins} label="Renda" value={fmtCurrency(income)} hint="Opcional" />
-              <PrefCard icon={CreditCard} label="Objetivo" value={needsFinancing ? "Moradia financiada" : "Aluguel ou investimento"} />
-              <PrefCard icon={Shield} label="Segurança" value={extras.identityVerified ? "Verificado" : extras.documentStatus === "review" ? "Em análise" : p.security ? "Prioridade" : "Normal"} />
+              <PrefCard icon={Coins} label="Renda" value={incomeLabel} hint="Opcional" />
+              <PrefCard icon={CreditCard} label="Objetivo" value={objectiveLabel} />
+              <PrefCard icon={Shield} label="Segurança" value={securityLabel} />
             </div>
           </Section>
 
-          <Section title="Completar perfil" subtitle="Dados usados para deixar o matchmaking mais preciso">
+          <Section
+            title="Completar perfil"
+            subtitle="Dados usados para deixar o matchmaking mais preciso"
+            className="rounded-3xl border border-primary/25 bg-primary/5 p-5 shadow-soft"
+          >
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               <ProfileTask icon={Pencil} title="Foto do perfil" description={extras.avatar ? "Foto adicionada" : "Adicionar imagem real"} done={Boolean(extras.avatar)} onClick={() => setActiveSection("photo")} />
               <ProfileTask icon={Coins} title="Renda e objetivo" description={extras.income ? `${fmtCurrency(extras.income)} informados` : "Renda, objetivo e orçamento"} done={Boolean(extras.income)} onClick={() => setActiveSection("finance")} />
@@ -563,6 +587,54 @@ function Profile() {
   );
 }
 
+function formatOptionalCurrency(value?: string | number | null) {
+  if (value === undefined || value === null || value === "") return "Não informado";
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? fmtCurrency(numeric) : "Não informado";
+}
+
+function formatPropertyTypes(types?: string[]) {
+  if (!types?.length) return "Não informado";
+  const labels: Record<string, string> = {
+    APARTAMENTO: "Apartamento",
+    CASA: "Casa",
+    STUDIO: "Studio",
+    COBERTURA: "Cobertura",
+    TERRENO: "Terreno",
+  };
+  return types.map((type) => labels[type] ?? type).join(", ");
+}
+
+function buildPreferenceCards(preference: ReadDeletePreference | null) {
+  if (!preference) return [];
+
+  return [
+    { icon: Coins, label: "Faixa de preço", value: `${formatOptionalCurrency(preference.minPrice)} - ${formatOptionalCurrency(preference.maxPrice)}` },
+    { icon: MapPin, label: "Cidade", value: preference.city && preference.state ? `${preference.city}/${preference.state}` : "Não informado" },
+    { icon: BedDouble, label: "Quartos", value: preference.minBedrooms !== undefined ? `${preference.minBedrooms}+` : "Não informado" },
+    { icon: Bath, label: "Banheiros", value: preference.minBathrooms !== undefined ? `${preference.minBathrooms}+` : "Não informado" },
+    { icon: Home, label: "Tipo imóvel", value: formatPropertyTypes(preference.propertyTypes) },
+    { icon: Car, label: "Garagem", value: preference.minParkingSpots !== undefined ? `${preference.minParkingSpots}+` : "Não informado" },
+    { icon: PawPrint, label: "Comodidades", value: preference.desiredAmenities?.length ? preference.desiredAmenities.join(", ").replace(/_/g, " ") : "Não informado" },
+    { icon: TrainFront, label: "Área útil", value: preference.minAreaM2 || preference.maxAreaM2 ? `${preference.minAreaM2 ?? 0}m² - ${preference.maxAreaM2 ?? "sem limite"}m²` : "Não informado" },
+  ];
+}
+
+function EmptyProfileState({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="w-full rounded-3xl border border-dashed border-primary/40 bg-primary/5 p-5 text-left transition-colors hover:bg-primary/10">
+      <div className="flex items-center gap-3">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-primary-foreground">
+          <Sparkles className="h-4 w-4" />
+        </div>
+        <div>
+          <div className="text-sm font-bold text-foreground">Nenhum critério ativo encontrado</div>
+          <div className="mt-1 text-xs text-muted-foreground">Refaça o onboarding para calibrar o Explorar e o matchmaking.</div>
+        </div>
+      </div>
+    </button>
+  );
+}
 function SavedProperties({ items, useFallback }: { items: Property[]; useFallback: boolean }) {
   const list = items.length ? items : useFallback ? properties.slice(0, 4) : [];
 
@@ -592,14 +664,16 @@ function Section({
   subtitle,
   action,
   children,
+  className,
 }: {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <section>
+    <section className={className}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-xl">{title}</h2>
@@ -1000,3 +1074,8 @@ function Row({
 
   return <div className={className}>{content}</div>;
 }
+
+
+
+
+
