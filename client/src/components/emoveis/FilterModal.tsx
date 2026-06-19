@@ -1,5 +1,5 @@
 import { Bath, BedDouble, Car, Coins, Home, MapPin, Maximize2, Sparkles, X } from "lucide-react";
-import { fmtCurrency } from "@/mock/data";
+import { fmtCurrency } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";

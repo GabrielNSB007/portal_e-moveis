@@ -3,8 +3,8 @@ import { Bath, BedDouble, Bookmark, Car, Handshake, Maximize, MapPin } from "luc
 import { motion } from "framer-motion";
 import { useState } from "react";
 import type { MouseEvent } from "react";
-import { fmtCurrency } from "@/mock/data";
-import type { Property } from "@/mock/data";
+import { fmtCurrency } from "@/lib/format";
+import type { Property } from "@/types/property";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import api from "@/services/api";

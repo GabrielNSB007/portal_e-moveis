@@ -24,7 +24,8 @@ import {
   Sun,
   TrainFront,
 } from "lucide-react";
-import { fmtCurrency, properties, SEARCH_STYLES, user, type Property } from "@/mock/data";
+import { fmtCurrency } from "@/lib/format";
+import type { Property } from "@/types/property";
 import { PropertyCard } from "@/components/emoveis/PropertyCard";
 import { SectionHeader } from "@/components/emoveis/SectionHeader";
 import { Button } from "@/components/ui/button";
@@ -35,9 +36,56 @@ import api from "@/services/api";
 import { mapOffersToProperties } from "@/lib/offer-mappers";
 import { listSavedOffers } from "@/services/saved-offers";
 import { listMatches } from "@/services/matches";
+import { findManyPreferences } from "@/services/preferences";
 import type { BackendProposal } from "@/lib/offer-mappers";
+import type { ReadDeletePreference } from "@/types/preferences";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+const SEARCH_STYLES = [
+  { id: "soon", label: "Busca por proximidade", desc: "Foco em imóveis próximos que combinem com seu estilo." },
+  { id: "score", label: "Busca por score", desc: "Priorizando maior compatibilidade com sua jornada." },
+  { id: "price", label: "Busca econômica", desc: "Imóveis com melhor relação preço/benefício." },
+];
+
+const DEFAULT_PROFILE_FALLBACK = {
+  name: "Seu perfil",
+  email: "contato@emoveis.app",
+};
+
+const EMPTY_PREFERENCE_SUMMARY = {
+  budget: [0, 5000000] as [number, number],
+  neighborhoods: [] as string[],
+  bedrooms: 0,
+  bathrooms: 0,
+  types: [] as string[],
+  parking: 0,
+  petFriendly: false,
+  nearby: ["Localização estratégica"],
+  security: false,
+};
+
+type PreferenceSummary = typeof EMPTY_PREFERENCE_SUMMARY;
+
+function buildPreferenceSummary(preferences: ReadDeletePreference[]): PreferenceSummary {
+  const activePreference = preferences.find((preference) => preference.isActive) ?? preferences[0];
+
+  if (!activePreference) {
+    return EMPTY_PREFERENCE_SUMMARY;
+  }
+
+  return {
+    budget: [activePreference.minPrice ?? 0, activePreference.maxPrice ?? 5000000],
+    neighborhoods: activePreference.neighborhoods ?? [],
+    bedrooms: activePreference.minBedrooms ?? 0,
+    bathrooms: activePreference.minBathrooms ?? 0,
+    types: activePreference.propertyTypes ?? [],
+    parking: activePreference.minParkingSpots ?? 0,
+    petFriendly: (activePreference.desiredAmenities ?? []).some((amenity) => amenity.toLowerCase().includes("PET")),
+    nearby: activePreference.city ? [activePreference.city] : EMPTY_PREFERENCE_SUMMARY.nearby,
+    security: (activePreference.desiredAmenities ?? []).some((amenity) => amenity.toLowerCase().includes("PORTARIA")),
+  };
+}
 
 export const Route = createFileRoute("/_tabs/profile")({
   component: Profile,
@@ -131,8 +179,8 @@ function Profile() {
   const [isActivatingSeller, setIsActivatingSeller] = useState(false);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>({ name: "", email: "", phone: "", password: "", currentPassword: "" });
   const [savedProperties, setSavedProperties] = useState<Property[]>([]);
-  const [profileStats, setProfileStats] = useState({ interests: user.stats.interests, matches: user.stats.matches, viewed: user.stats.viewed });
-  const p = user.preferences;
+  const [preferences, setPreferences] = useState<ReadDeletePreference[]>([]);
+  const [profileStats, setProfileStats] = useState({ interests: 0, matches: 0, viewed: 0 });
 
   useEffect(() => {
     let active = true;
@@ -171,7 +219,7 @@ function Profile() {
         setProfileStats({
           interests: proposalsResponse.data.length,
           matches: matchesResponse.data.pagination?.total ?? matchesResponse.data.items.length,
-          viewed: user.stats.viewed,
+          viewed: 0,
         });
       })
       .catch(() => undefined);
@@ -203,6 +251,20 @@ function Profile() {
     }
   }, [profile?.email]);
 
+  useEffect(() => {
+    let active = true;
+
+    findManyPreferences()
+      .then((data) => {
+        if (active) setPreferences(data);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const saveExtras = async (next: ProfileExtras) => {
     if (!profile?.email) return;
 
@@ -222,8 +284,8 @@ function Profile() {
     }
   };
 
-  const displayName = profile?.name ?? (isProfileLoading ? "Carregando..." : user.name);
-  const displayEmail = profile?.email ?? user.email;
+  const displayName = profile?.name ?? (isProfileLoading ? "Carregando..." : DEFAULT_PROFILE_FALLBACK.name);
+  const displayEmail = profile?.email ?? DEFAULT_PROFILE_FALLBACK.email;
   const displayPhone = profile?.phone || "Não informado";
   const initials = displayName
     .split(" ")
@@ -231,8 +293,10 @@ function Profile() {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("") || "EU";
-  const income = extras.income ?? user.income;
-  const needsFinancing = extras.needsFinancing ?? user.needsFinancing;
+  const income = extras.income;
+  const needsFinancing = extras.needsFinancing;
+  const profilePreferences = buildPreferenceSummary(preferences);
+  const p = profilePreferences;
   const completion = Math.min(
     100,
     55 + (extras.avatar ? 15 : 0) + (extras.income ? 15 : 0) + (extras.documentStatus ? 15 : 0),
@@ -559,7 +623,15 @@ function Profile() {
 }
 
 function SavedProperties({ items }: { items: Property[] }) {
-  const list = items.length ? items : properties.slice(0, 4);
+  const list = items;
+
+  if (!list.length) {
+    return (
+      <div className="rounded-[2rem] border border-border bg-card p-6 text-center">
+        <p className="text-sm font-medium text-muted-foreground">Nenhum imóvel salvo ainda.</p>
+      </div>
+    );
+  }
 
   return (
     <div>

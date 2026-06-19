@@ -18,7 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { fmtCurrency } from "@/mock/data";
+import { fmtCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import api from "@/services/api";

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { fmtCurrency } from "@/mock/data";
+import { fmtCurrency } from "@/lib/format";
 import { getAuthToken, getSessionEmail, markOnboardingComplete } from "@/lib/auth-session";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";

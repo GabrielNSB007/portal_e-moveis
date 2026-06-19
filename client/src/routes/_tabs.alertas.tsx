@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { alerts, propertyById, type Alert, type AlertType, type Property } from "@/mock/data";
+import { type Alert, type AlertType } from "@/types/property";
 import { EmptyState } from "@/components/emoveis/EmptyState";
 import {
   Bell,
@@ -59,7 +59,7 @@ const notificationTime = (createdAt: string) => {
 };
 
 function Alertas() {
-  const [items, setItems] = useState<DisplayAlert[]>(alerts);
+  const [items, setItems] = useState<DisplayAlert[]>([]);
 
   const unread = items.filter((a) => !a.read).length;
 
@@ -68,7 +68,7 @@ function Alertas() {
 
     listNotifications()
       .then(({ data }) => {
-        if (!active || !data.length) return;
+        if (!active) return;
         setItems(
           data.map((item, index) => ({
             id: item.id,
@@ -83,7 +83,7 @@ function Alertas() {
           })),
         );
       })
-      .catch(() => setItems(alerts));
+      .catch(() => setItems([]));
 
     return () => {
       active = false;
@@ -184,7 +184,7 @@ function Alertas() {
 
 function AlertRow({ alert, delay }: { alert: DisplayAlert; delay: number }) {
   const meta = ICONS[alert.type];
-  const p = alert.property ?? (alert.propertyId ? propertyById(alert.propertyId) : null);
+  const p = alert.property ?? null;
 
   const body = (
     <div

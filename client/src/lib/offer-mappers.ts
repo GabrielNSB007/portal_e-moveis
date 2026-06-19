@@ -1,4 +1,13 @@
-import { properties, type Property } from "@/mock/data";
+import { type Property } from "@/types/property";
+
+const fallbackImages: string[] = [
+  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+];
 
 export type BackendOfferMedia = {
   id?: string;
@@ -77,8 +86,6 @@ const defaultNearby: Property["nearby"] = [
   { name: "Transporte publico", distance: "800m", icon: "Train" },
 ];
 
-const fallbackImages = properties.flatMap((property) => property.images);
-
 export function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
@@ -115,7 +122,7 @@ export function mapOfferToProperty(offer: BackendOffer, index = 0): Property {
     area: offer.areaM2,
     parking: offer.parkingSpots,
     match: Math.max(74, 94 - (index % 8) * 3),
-    images: images.length ? images : properties[0].images,
+    images: images.length ? images : fallbackImages.slice(0, 4),
     description: offer.description ?? "Imovel anunciado no Portal E-moveis com dados prontos para matchmaking.",
     amenities,
     nearby: defaultNearby,

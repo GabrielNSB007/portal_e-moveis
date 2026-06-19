@@ -21,9 +21,10 @@ import { Logo } from "@/components/emoveis/Logo";
 import { PropertyCard } from "@/components/emoveis/PropertyCard";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { fmtCurrency, properties } from "@/mock/data";
+import { fmtCurrency } from "@/lib/format";
 import api from "@/services/api";
 import { mapOffersToProperties, readOffersPayload } from "@/lib/offer-mappers";
+import type { Property } from "@/types/property";
 import { cn } from "@/lib/utils";
 import { citiesForState, DEFAULT_CITY, DEFAULT_STATE, neighborhoodsForCity, STATE_OPTIONS } from "@/lib/location-options";
 
@@ -97,7 +98,7 @@ function Explore() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeChip, setActiveChip] = useState("Para voce");
-  const [availableProperties, setAvailableProperties] = useState(properties);
+  const [availableProperties, setAvailableProperties] = useState<Property[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [profileName, setProfileName] = useState("voce");
   const [filters, setFilters] = useState<ExploreFilters>({
@@ -189,7 +190,7 @@ function Explore() {
           setAvailableProperties(mapOffersToProperties(offers));
         }
       } catch {
-        if (mounted) setAvailableProperties(properties);
+        if (mounted) setAvailableProperties([]);
       } finally {
         if (mounted) setLoadingOffers(false);
       }

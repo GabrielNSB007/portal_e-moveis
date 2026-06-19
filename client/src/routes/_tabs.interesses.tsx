@@ -17,15 +17,16 @@ import {
   X,
   Building2,
 } from "lucide-react";
-import {
-  fmtCurrency,
-  matches,
-  propertyById,
-  receivedInterests,
-  sentInterests,
-  type InterestStatus,
-} from "@/mock/data";
 import { EmptyState } from "@/components/emoveis/EmptyState";
+
+type InterestStatus =
+  | "Enviado"
+  | "Interesse enviado"
+  | "Visualizado"
+  | "Aguardando resposta"
+  | "Proposta recebida"
+  | "Match"
+  | "Match formado";
 import { MatchBadge } from "@/components/emoveis/MatchBadge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -126,9 +127,9 @@ function Interesses() {
   }, []);
 
   const counts = {
-    sent: sentProposals.length || sentInterests.length,
-    received: receivedProposals.length || receivedInterests.length,
-    matches: realMatches.length || matches.length,
+    sent: sentProposals.length,
+    received: receivedProposals.length,
+    matches: realMatches.length,
   };
 
   return (
@@ -226,8 +227,7 @@ function InterestDetailPanel({
   sentProposals: UiProposal[];
   realMatches: UiMatch[];
 }) {
-  const featured =
-    tab === "matches" ? realMatches[0]?.property ?? propertyById(matches[0]?.propertyId) : sentProposals[0]?.property ?? propertyById(sentInterests[0]?.propertyId);
+  const featured = tab === "matches" ? realMatches[0]?.property : sentProposals[0]?.property;
 
   return (
     <aside className="sticky top-8 hidden h-fit space-y-6 lg:block">
@@ -355,98 +355,16 @@ function SentList({ proposals }: { proposals: UiProposal[] }) {
     );
   }
 
-  return <MockSentList />;
-}
-
-function MockSentList() {
-  if (!sentInterests.length) {
-    return (
-      <div className="mt-8 lg:mt-16">
-        <EmptyState
-          icon={Send}
-          title="Nenhum interesse enviado"
-          description="Explore os imóveis compatíveis com seu perfil e demonstre interesse quando encontrar o lar ideal."
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4 lg:space-y-5">
-      {sentInterests.map((s, i) => {
-        const p = propertyById(s.propertyId);
-        if (!p) return null;
-        const meta = STATUS_META[s.status];
-        const Icon = meta.icon;
-
-        return (
-          <motion.div
-            key={s.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-          >
-            <Link
-              to="/property/$id"
-              params={{ id: p.id }}
-              className="group block overflow-hidden rounded-[1.5rem] border border-border/50 bg-card shadow-sm transition-all hover:border-border hover:shadow-md active:scale-[0.99] lg:rounded-[2rem]"
-            >
-              <div className="flex gap-4 p-4 lg:p-5">
-                <div className="relative shrink-0 overflow-hidden rounded-2xl lg:h-28 lg:w-28 lg:rounded-[1.25rem]">
-                  <img src={p.images[0]} alt="" className="h-20 w-20 object-cover transition-transform duration-500 group-hover:scale-110 lg:h-full lg:w-full" />
-                </div>
-                <div className="min-w-0 flex-1 pt-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="line-clamp-1 text-base font-bold lg:text-lg">{p.title}</h3>
-                    <span
-                      className={cn(
-                        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider lg:px-3 lg:py-1.5 lg:text-xs",
-                        meta.tone
-                      )}
-                    >
-                      <Icon className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
-                      <span className="hidden sm:inline">{meta.label}</span>
-                    </span>
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground lg:text-sm">
-                    {p.neighborhood} · enviado {s.sentAt}
-                  </div>
-                  <div className="mt-2 text-lg font-bold text-foreground lg:mt-3 lg:text-xl">{fmtCurrency(p.price)}</div>
-                </div>
-              </div>
-
-              {/* BARRA DE PROGRESSO DO PIPELINE */}
-              <div className="border-t border-border bg-secondary/30 px-5 py-4 lg:px-6">
-                <div className="flex items-center gap-2">
-                  {[0, 1, 2, 3, 4].map((step) => (
-                    <div
-                      key={step}
-                      className="relative flex-1"
-                    >
-                      <div
-                        className={cn(
-                          "h-1.5 w-full rounded-full transition-all duration-500 lg:h-2",
-                          step <= meta.step ? "bg-primary" : "bg-border/60"
-                        )}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-2 flex justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground lg:text-xs">
-                  <span>Enviado</span>
-                  <span className="hidden sm:inline">Visualizado</span>
-                  <span>Match</span>
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        );
-      })}
+    <div className="mt-8 lg:mt-16">
+      <EmptyState
+        icon={Send}
+        title="Nenhum interesse enviado"
+        description="Explore os imóveis compatíveis com seu perfil e demonstre interesse quando encontrar o lar ideal."
+      />
     </div>
   );
 }
-
-
 
 async function updateProposalStatus(id: string, status: "ACEITA" | "RECUSADA" | "CANCELADA") {
   await api.patch(`/proposals/${id}/status`, { status });
@@ -521,7 +439,7 @@ function ReceivedList({ proposals }: { proposals: UiProposal[] }) {
     );
   }
 
-  if (!receivedInterests.length) {
+  if (!proposals.length) {
     return (
       <div className="mt-8 lg:mt-16">
         <EmptyState
@@ -542,8 +460,8 @@ function ReceivedList({ proposals }: { proposals: UiProposal[] }) {
         </p>
       </div>
 
-      {receivedInterests.map((r, i) => {
-        const p = propertyById(r.propertyId);
+      {receivedProposals.map((proposal, i) => {
+        const p = proposal.property;
         if (!p) return null;
 
         return (
@@ -568,10 +486,10 @@ function ReceivedList({ proposals }: { proposals: UiProposal[] }) {
             <div className="p-5 lg:p-6">
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-primary lg:text-xs">
                 <Sparkles className="h-4 w-4" />
-                {r.from === "Sistema" ? "Sugestao do algoritmo" : "Anunciante interessado"}
+                {proposal.message ? "Proposta recebida" : "Anunciante interessado"}
               </div>
-              <p className="mt-2 text-sm leading-relaxed text-foreground lg:text-base">{r.reason}</p>
-              <p className="mt-2 text-[11px] font-medium text-muted-foreground lg:text-xs">Recebido: {r.receivedAt}</p>
+              <p className="mt-2 text-sm leading-relaxed text-foreground lg:text-base">{proposal.message ?? "Comprador demonstrou interesse neste imóvel."}</p>
+              <p className="mt-2 text-[11px] font-medium text-muted-foreground lg:text-xs">Recebido: {formatDateLabel(proposal.createdAt)}</p>
             </div>
           </motion.div>
         );
@@ -637,7 +555,7 @@ function MatchesList({ items }: { items: UiMatch[] }) {
     );
   }
 
-  if (!matches.length) {
+  if (!items.length) {
     return (
       <div className="mt-8 lg:mt-16">
         <EmptyState
@@ -661,8 +579,8 @@ function MatchesList({ items }: { items: UiMatch[] }) {
         </p>
       </div>
 
-      {matches.map((m, i) => {
-        const p = propertyById(m.propertyId);
+      {items.map((match, i) => {
+        const p = match.property;
         if (!p) return null;
 
         return (

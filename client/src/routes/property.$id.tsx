@@ -20,7 +20,8 @@ import {
   Sparkles,
   Grid3X3,
 } from "lucide-react";
-import { propertyById, properties, fmtCurrency, isMatched, type Property } from "@/mock/data";
+import { fmtCurrency } from "@/lib/format";
+import type { Property } from "@/types/property";
 import api from "@/services/api";
 import { isUuid, mapOfferToProperty, type BackendOffer } from "@/lib/offer-mappers";
 import { removeSavedOffer, saveOffer } from "@/services/saved-offers";
@@ -36,7 +37,6 @@ export const Route = createFileRoute("/property/$id")({
 function PropertyDetails() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const fallbackProperty = propertyById(id);
   const [remoteProperty, setRemoteProperty] = useState<Property | null>(null);
   const [loadingProperty, setLoadingProperty] = useState(isUuid(id));
   const [fav, setFav] = useState(false);
@@ -44,7 +44,7 @@ function PropertyDetails() {
   const [interested, setInterested] = useState(false);
   const [sendingInterest, setSendingInterest] = useState(false);
   const [savingFavorite, setSavingFavorite] = useState(false);
-  const p = remoteProperty ?? fallbackProperty;
+  const p = remoteProperty;
 
   useEffect(() => {
     let mounted = true;
@@ -96,8 +96,8 @@ function PropertyDetails() {
     );
   }
 
-  const matched = isMatched(p.id);
-  const similar = properties.filter((x) => x.id !== p.id).slice(0, 4);
+  const matched = false;
+  const similar: Property[] = [];
 
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
