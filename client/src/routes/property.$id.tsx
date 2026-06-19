@@ -470,32 +470,6 @@ function PropertyDetails() {
         </div>
 
         <section className="mt-8 px-5 lg:px-0">
-          <h3 className="text-lg font-bold lg:text-xl">Localização</h3>
-          <div className="relative mt-4 h-64 overflow-hidden rounded-3xl border border-border bg-secondary shadow-sm lg:h-80">
-            <div
-              className="absolute inset-0 opacity-60"
-              style={{
-                backgroundImage:
-                  "radial-gradient(circle at 30% 40%, oklch(0.55 0.14 175 / 0.18) 0, transparent 50%), radial-gradient(circle at 70% 60%, oklch(0.72 0.17 175 / 0.18) 0, transparent 50%), linear-gradient(135deg, oklch(0.92 0.02 175), oklch(0.96 0.01 200))",
-              }}
-            />
-            <svg className="absolute inset-0 h-full w-full opacity-40">
-              <defs>
-                <pattern id="grid-full" width="30" height="30" patternUnits="userSpaceOnUse">
-                  <path d="M 30 0 L 0 0 0 30" fill="none" stroke="currentColor" strokeWidth="0.5" />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#grid-full)" />
-            </svg>
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-              <div className="grid h-16 w-16 animate-pulse place-items-center rounded-full bg-gradient-primary shadow-float">
-                <MapPin className="h-8 w-8 text-primary-foreground" />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-8 px-5 lg:px-0">
           <h2 className="text-xl font-bold lg:text-2xl">Imóveis similares</h2>
           <div className="mt-4 flex gap-4 overflow-x-auto pb-3 no-scrollbar lg:grid lg:grid-cols-4 lg:overflow-visible lg:pb-0">
             {similar.map((item) => (

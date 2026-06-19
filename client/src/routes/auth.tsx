@@ -60,8 +60,8 @@ function Auth() {
   const [form, setForm] = useState({
     name: "",
     phone: "",
-    email: "ana@emoveis.app",
-    password: "123456",
+    email: "",
+    password: "",
   });
 
   const update = (field: keyof typeof form, value: string) => {

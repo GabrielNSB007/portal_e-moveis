@@ -91,12 +91,15 @@ export type ExploreFilterActions = {
   setSelectedAmenities: (value: string[]) => void;
 };
 
+type AuthProfile = { name: string; email: string };
+
 function Explore() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeChip, setActiveChip] = useState("Para voce");
   const [availableProperties, setAvailableProperties] = useState(properties);
   const [loadingOffers, setLoadingOffers] = useState(false);
+  const [profileName, setProfileName] = useState("voce");
   const [filters, setFilters] = useState<ExploreFilters>({
     budget: [0, 5000000],
     selectedState: DEFAULT_STATE,
@@ -122,6 +125,24 @@ function Explore() {
     setArea: (area) => setFilters((current) => ({ ...current, area })),
     setSelectedAmenities: (selectedAmenities) => setFilters((current) => ({ ...current, selectedAmenities })),
   };
+
+
+  useEffect(() => {
+    let mounted = true;
+
+    api
+      .get<AuthProfile>("/auth/profile")
+      .then(({ data }) => {
+        if (!mounted) return;
+        const firstName = data.name?.trim().split(/\s+/)[0];
+        setProfileName(firstName || "voce");
+      })
+      .catch(() => undefined);
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -262,7 +283,7 @@ function Explore() {
         <div className="hidden items-end justify-between gap-6 lg:flex">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Explorar</div>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">Imoveis compativeis para Ana</h1>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight">Imoveis compativeis para {profileName}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Feed inteligente com imoveis, vendedores e corretores alinhados ao perfil.
             </p>
