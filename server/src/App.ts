@@ -19,11 +19,22 @@ export default class App {
   private app: Application;
   private port: number;
 
-  constructor(port = 8080) {
+constructor(port = 8080) {
     this.app = express();
-    this.app.use(cors({ origin: "*" }));
+    this.app.use(
+      cors({
+        origin: [
+          "http://localhost:8080",
+          "https://portal-e-moveis.vercel.app/"
+        ],
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+      })
+    );
+    
     this.app.use(express.json());
-    this.port = port;
+    // Garante que prioriza a porta do ambiente (Render) ou a passada por parâmetro
+    this.port = Number(process.env.PORT) || port;
     this.setupRoutes();
   }
 
