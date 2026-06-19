@@ -131,6 +131,7 @@ function Profile() {
   const [isActivatingSeller, setIsActivatingSeller] = useState(false);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>({ name: "", email: "", phone: "", password: "", currentPassword: "" });
   const [savedProperties, setSavedProperties] = useState<Property[]>([]);
+  const [savedFallback, setSavedFallback] = useState(false);
   const [profileStats, setProfileStats] = useState({ interests: user.stats.interests, matches: user.stats.matches, viewed: user.stats.viewed });
   const p = user.preferences;
 
@@ -186,10 +187,16 @@ function Profile() {
 
     listSavedOffers()
       .then(({ data }) => {
-        if (active) setSavedProperties(mapOffersToProperties(data.map((item) => item.offer)));
+        if (active) {
+          setSavedFallback(false);
+          setSavedProperties(mapOffersToProperties(data.map((item) => item.offer)));
+        }
       })
       .catch(() => {
-        if (active) setSavedProperties([]);
+        if (active) {
+          setSavedFallback(true);
+          setSavedProperties([]);
+        }
       });
 
     return () => {
@@ -218,7 +225,7 @@ function Profile() {
       toast.success("Perfil atualizado.");
       setActiveSection(null);
     } catch (error: any) {
-      toast.error(error?.response?.data?.error ?? "N?o foi poss?vel salvar os detalhes do perfil.");
+      toast.error(error?.response?.data?.error ?? "Não foi possível salvar os detalhes do perfil.");
     }
   };
 
@@ -485,7 +492,7 @@ function Profile() {
 
           {/* Imóveis Salvos Mobile (Oculto no Desktop) */}
           <div className="lg:hidden">
-            <SavedProperties items={savedProperties} />
+            <SavedProperties items={savedProperties} useFallback={savedFallback} />
           </div>
         </div>
 
@@ -529,7 +536,7 @@ function Profile() {
 
           {/* Imóveis Salvos Desktop */}
           <div className="hidden lg:block">
-            <SavedProperties items={savedProperties} />
+            <SavedProperties items={savedProperties} useFallback={savedFallback} />
           </div>
 
         </aside>
@@ -558,20 +565,26 @@ function Profile() {
   );
 }
 
-function SavedProperties({ items }: { items: Property[] }) {
-  const list = items.length ? items : properties.slice(0, 4);
+function SavedProperties({ items, useFallback }: { items: Property[]; useFallback: boolean }) {
+  const list = items.length ? items : useFallback ? properties.slice(0, 4) : [];
 
   return (
     <div>
       <SectionHeader title="Imoveis Salvos" subtitle={`${list.length} imoveis`} />
       {/* Carrossel no Mobile, Grid no Desktop */}
-      <div className="mt-3 flex gap-4 overflow-x-auto pb-2 no-scrollbar lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0">
-        {list.map((pr) => (
-          <div key={pr.id} className="w-[240px] shrink-0 lg:w-auto">
-            <PropertyCard property={pr} compact />
-          </div>
-        ))}
-      </div>
+      {list.length ? (
+        <div className="mt-3 flex gap-4 overflow-x-auto pb-2 no-scrollbar lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0">
+          {list.map((pr) => (
+            <div key={pr.id} className="w-[240px] shrink-0 lg:w-auto">
+              <PropertyCard property={pr} compact />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-3 rounded-3xl border border-border bg-card p-5 text-sm text-muted-foreground">
+          Nenhum imovel salvo ainda.
+        </div>
+      )}
     </div>
   );
 }

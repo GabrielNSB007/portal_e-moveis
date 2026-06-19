@@ -3,7 +3,7 @@ import { fmtCurrency } from "@/mock/data";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { citiesForState, DEFAULT_CITY, DEFAULT_STATE, neighborhoodsForCity, STATE_OPTIONS } from "@/lib/location-options";
+import { citiesForState, DEFAULT_CITY, DEFAULT_STATE, STATE_OPTIONS } from "@/lib/location-options";
 import type { ExploreFilterActions, ExploreFilters } from "@/routes/_tabs.explore";
 
 const TYPES = ["Apartamento", "Casa", "Studio", "Cobertura", "Comercial"];
@@ -26,7 +26,6 @@ export function FilterModal({
     actions.setBudget([0, 5000000]);
     actions.setSelectedState(DEFAULT_STATE);
     actions.setSelectedCity(DEFAULT_CITY);
-    actions.setSelectedNbhd([]);
     actions.setSelectedTypes([]);
     actions.setBedrooms(0);
     actions.setBathrooms(0);
@@ -63,7 +62,7 @@ export function FilterModal({
               <div>
                 <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Estado</div>
                 <SingleChips
-                  items={STATE_OPTIONS.map((state) => ({ label: state.value, value: state.value }))}
+                  items={STATE_OPTIONS.map((state) => ({ label: state.label, value: state.value }))}
                   selected={filters.selectedState}
                   onSelect={actions.setSelectedState}
                 />
@@ -76,12 +75,6 @@ export function FilterModal({
                   onSelect={actions.setSelectedCity}
                 />
               </div>
-              {neighborhoodsForCity(filters.selectedCity).length > 0 && (
-                <div>
-                  <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Bairros</div>
-                  <Chips items={neighborhoodsForCity(filters.selectedCity)} selected={filters.selectedNbhd} onToggle={actions.setSelectedNbhd} />
-                </div>
-              )}
             </div>
           </Section>
 

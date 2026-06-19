@@ -45,6 +45,12 @@ export class AuthService {
       name,
     );
 
+    await this.authRepository.createNotification(
+      newUser.id,
+      "Conta criada",
+      "Você criou sua conta. Bem-vindo ao Portal E-móveis!",
+    );
+
     const token = generateAccessToken(newUser.id);
     return token;
   }

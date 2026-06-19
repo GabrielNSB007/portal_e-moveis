@@ -1,3 +1,5 @@
+﻿// Temporary UI fallback only.
+// Real app data should come from the backend; keep this file for offline/error states while integration is completed.
 export type Property = {
   id: string;
   title: string;
@@ -18,6 +20,7 @@ export type Property = {
   reason: string;
   petFriendly: boolean;
   contact: { agent: string; phone: string; whatsapp: string; email: string };
+  listingPurpose?: "SALE" | "RENT";
 };
 
 const img = (id: string) =>
@@ -495,3 +498,6 @@ export const agentMatches: AgentMatch[] = [
 
 export const agentListingByPropertyId = (propertyId: string) =>
   agentListings.find((listing) => listing.propertyId === propertyId);
+
+
+

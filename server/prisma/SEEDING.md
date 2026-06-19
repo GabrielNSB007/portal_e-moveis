@@ -1,20 +1,28 @@
 # Seed guide
 
-Este projeto ainda nao tem `seed.ts` por decisao do time. Este arquivo deixa o contrato pronto para quem for criar a seed.
+Este projeto tem uma seed modular para popular o ambiente local com dados consistentes de comprador, anunciante, imoveis e fluxos principais da aplicacao.
+
+## Arquitetura
+
+- `cities.ts`: catalogo fixo de estados, cidades e bairros.
+- `imagePool.ts`: catalogo fixo de imagens com `type`, `subtype` e `tags`.
+- `imagePool.ts`: tambem aceita Pexels API quando `SEED_IMAGE_PROVIDER=pexels` e `PEXELS_API_KEY` estiverem definidos.
+- `propertyTemplates.ts`: templates de imoveis com regras de quartos, banheiros, vagas, area, preco e comodidades.
+- `generateProperties.ts`: gerador deterministico que escolhe cidade, bairro, template e imagens menos repetidas primeiro.
+- `validateProperties.ts`: validador executado antes de inserir qualquer oferta.
+- `seed.ts`: orquestra usuarios, preferencias, imoveis, midias, matches, propostas, salvos, notificacoes e metricas.
 
 ## Comandos
 
-Depois que `server/prisma/seed.ts` existir:
-
 ```bash
-corepack pnpm --dir server exec prisma db push
-corepack pnpm --dir server run seed
+pnpm --dir server exec prisma db push
+pnpm --dir server run seed
 ```
 
 Alternativa equivalente:
 
 ```bash
-corepack pnpm --dir server exec prisma db seed
+pnpm --dir server exec prisma db seed
 ```
 
 ## Contas recomendadas
@@ -74,18 +82,32 @@ A seed deve permitir validar estes fluxos sem cadastro manual:
 - Notificacoes lidas/nao lidas.
 - Painel anunciante com ofertas, propostas recebidas, views e visitas.
 
-## Dados de ofertas sugeridos
+## Dados de ofertas
 
-Crie pelo menos 8 ofertas:
+A seed atual cria 170 ofertas deterministicas:
 
-- 5 em `Sao Paulo/SP`, bairros: Vila Madalena, Pinheiros, Itaim Bibi, Perdizes, Moema.
-- 1 em `Rio de Janeiro/RJ`, bairro: Ipanema ou Botafogo.
-- 1 em `Curitiba/PR`, bairro: Batel.
-- 1 em `Florianopolis/SC`, bairro: Centro ou Campeche.
+- Todas as cidades cadastradas em `client/src/lib/location-options.ts`.
+- Pelo menos 3 imoveis por cidade cadastrada, variando bairros.
+- Recife recebe volume extra de imoveis nos mesmos bairros, sem criar bairros adicionais.
+- Cada oferta recebe 2 fotos vindas do catalogo fixo.
+- Imagens sao escolhidas por compatibilidade, subtipo, comodidades, busca original e menor uso acumulado.
+- O gerador evita reutilizar imagens no mesmo estado, na mesma cidade e nas ofertas vizinhas; o validador bloqueia essas repeticoes antes do insert.
+- Com Pexels ativo, a seed busca fotos por subtipo e adiciona `Fotos via Pexels: https://www.pexels.com` na descricao do imovel.
+- O script falha antes de inserir no banco se houver inconsistencia.
+
+## Imagens via Pexels
+
+Sem chave, a seed usa o catalogo fixo versionado. Para buscar imagens novas via Pexels:
+
+```bash
+$env:SEED_IMAGE_PROVIDER="pexels"
+$env:PEXELS_API_KEY="sua-chave"
+pnpm --dir server run seed
+```
+
+Ao usar imagens de API externa, mantenha atribuicao visivel na UI/descricao conforme a regra do provedor.
 
 Misture tipos: `APARTAMENTO`, `CASA`, `STUDIO`, `COBERTURA`, `TERRENO`.
-
-Use `MediaType.FOTO` com URLs publicas de imagem. Se faltar imagem, o front tem fallback visual, mas a seed ideal deve preencher ao menos uma foto por oferta.
 
 ## Preferencias recomendadas
 
@@ -104,8 +126,8 @@ Para o comprador principal, crie uma preferencia ativa em `Sao Paulo/SP` com:
 
 ## Observacoes importantes
 
-- Use `upsert` se quiser preservar dados manuais.
-- Use `deleteMany` se quiser estado previsivel para QA.
+- A seed atual usa `deleteMany`, entao ela reseta dados locais antes de popular o banco.
+- A validacao roda antes do insert de ofertas e cobre subtipo, imagem, area, preco, quartos e categoria.
 - Evite depender de IDs fixos gerados manualmente; capture os objetos criados e use os IDs retornados.
 - `Proposal` tem unique em `[offerId, buyerId]`, entao nao crie duas propostas do mesmo comprador para a mesma oferta.
 - `SavedOffer` tambem tem unique em `[userId, offerId]`.

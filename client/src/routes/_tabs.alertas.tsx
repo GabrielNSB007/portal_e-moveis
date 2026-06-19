@@ -59,7 +59,7 @@ const notificationTime = (createdAt: string) => {
 };
 
 function Alertas() {
-  const [items, setItems] = useState<DisplayAlert[]>(alerts);
+  const [items, setItems] = useState<DisplayAlert[]>([]);
 
   const unread = items.filter((a) => !a.read).length;
 
@@ -68,7 +68,7 @@ function Alertas() {
 
     listNotifications()
       .then(({ data }) => {
-        if (!active || !data.length) return;
+        if (!active) return;
         setItems(
           data.map((item, index) => ({
             id: item.id,
@@ -83,7 +83,9 @@ function Alertas() {
           })),
         );
       })
-      .catch(() => setItems(alerts));
+      .catch(() => {
+        if (active) setItems(alerts);
+      });
 
     return () => {
       active = false;

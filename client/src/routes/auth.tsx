@@ -23,16 +23,16 @@ export const Route = createFileRoute("/auth")({
 type Mode = "login" | "register";
 
 const DDD_OPTIONS = [
-  { value: "11", label: "11 - Sao Paulo" },
-  { value: "21", label: "21 - Rio de Janeiro" },
-  { value: "31", label: "31 - Belo Horizonte" },
-  { value: "41", label: "41 - Curitiba" },
-  { value: "48", label: "48 - Florianopolis" },
-  { value: "51", label: "51 - Porto Alegre" },
-  { value: "61", label: "61 - Brasilia" },
-  { value: "71", label: "71 - Salvador" },
-  { value: "81", label: "81 - Recife" },
-  { value: "85", label: "85 - Fortaleza" },
+  { value: "11", label: "11" },
+  { value: "21", label: "21" },
+  { value: "31", label: "31" },
+  { value: "41", label: "41" },
+  { value: "48", label: "48" },
+  { value: "51", label: "51" },
+  { value: "61", label: "61" },
+  { value: "71", label: "71" },
+  { value: "81", label: "81" },
+  { value: "85", label: "85" },
 ];
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "");
@@ -62,6 +62,7 @@ function Auth() {
     phone: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
 
   const update = (field: keyof typeof form, value: string) => {
@@ -81,9 +82,9 @@ function Auth() {
       await api.post("/auth/password/recovery", { email });
       setRecovery((current) => ({ ...current, email }));
       setRecoverySent(true);
-      toast.success("C?digo de recupera??o enviado.");
+      toast.success("Código de recuperação enviado.");
     } catch (error: any) {
-      toast.error(error?.response?.data?.error ?? "N?o foi poss?vel enviar o c?digo.");
+      toast.error(error?.response?.data?.error ?? "Não foi possível enviar o código.");
     } finally {
       setIsRecoveryLoading(false);
     }
@@ -91,7 +92,7 @@ function Auth() {
 
   const resetPassword = async () => {
     if (!recovery.email || !recovery.code || !recovery.password) {
-      toast.error("Preencha email, c?digo e nova senha.");
+      toast.error("Preencha email, código e nova senha.");
       return;
     }
 
@@ -104,15 +105,20 @@ function Auth() {
       setRecoverySent(false);
       setRecovery({ email: "", code: "", password: "" });
     } catch (error: any) {
-      toast.error(error?.response?.data?.error ?? "N?o foi poss?vel redefinir a senha.");
+      toast.error(error?.response?.data?.error ?? "Não foi possível redefinir a senha.");
     } finally {
       setIsRecoveryLoading(false);
     }
   };
 
   const submit = async () => {
-    if (!form.email || !form.password || (mode === "register" && !form.name)) {
-      toast.error("Preencha os campos obrigatorios.");
+    if (!form.email || !form.password || (mode === "register" && (!form.name || !form.confirmPassword))) {
+      toast.error("Preencha os campos obrigatórios.");
+      return;
+    }
+
+    if (mode === "register" && form.password !== form.confirmPassword) {
+      toast.error("As senhas não conferem.");
       return;
     }
 
@@ -169,13 +175,13 @@ function Auth() {
           <div className="max-w-xl pb-10">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold backdrop-blur">
               <Home className="h-3.5 w-3.5" />
-              Matchmaking imobiliario
+              Matchmaking imobiliário
             </div>
             <h1 className="mt-5 text-5xl font-bold leading-tight tracking-tight">
               Encontre, negocie e anuncie no mesmo lugar.
             </h1>
             <p className="mt-4 max-w-md text-base leading-relaxed text-white/80">
-              Primeiro entramos pelo perfil comprador. Quando fizer sentido, voce ativa a area do anunciante.
+              Primeiro entramos pelo perfil comprador. Quando fizer sentido, você ativa a área do anunciante.
             </p>
           </div>
         </div>
@@ -221,13 +227,13 @@ function Auth() {
                     </Field>
                     <div>
                       <Label className="mb-2 block text-xs font-bold text-muted-foreground">Telefone</Label>
-                      <div className="grid grid-cols-[132px_minmax(0,1fr)] gap-2">
+                      <div className="grid grid-cols-[88px_minmax(0,1fr)] gap-2">
                         <div className="relative">
                           <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                           <select
                             value={phoneDdd}
                             onChange={(event) => setPhoneDdd(event.target.value)}
-                            className="h-12 w-full appearance-none rounded-2xl border border-input bg-secondary px-9 text-sm font-semibold outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring"
+                            className="h-12 w-full appearance-none rounded-2xl border border-input bg-secondary px-9 text-center text-sm font-semibold outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring"
                           >
                             {DDD_OPTIONS.map((option) => (
                               <option key={option.value} value={option.value}>
@@ -265,7 +271,7 @@ function Auth() {
                   value={form.password}
                   onChange={(event) => update("password", event.target.value)}
                   type={showPassword ? "text" : "password"}
-                  placeholder="Minimo 6 caracteres"
+                  placeholder="Mínimo 6 caracteres"
                   className="h-12 rounded-2xl bg-secondary pl-10 pr-11"
                 />
                 <button
@@ -277,6 +283,17 @@ function Auth() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </Field>
+              {mode === "register" && (
+                <Field label="Confirmar senha" icon={Lock}>
+                  <Input
+                    value={form.confirmPassword}
+                    onChange={(event) => update("confirmPassword", event.target.value)}
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Repita a senha"
+                    className="h-12 rounded-2xl bg-secondary pl-10"
+                  />
+                </Field>
+              )}
               {mode === "login" && (
                 <button
                   type="button"
@@ -386,7 +403,7 @@ function PasswordRecoveryModal({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-xl font-bold">Recuperar senha</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Enviaremos um c?digo para o email cadastrado.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Enviaremos um código para o email cadastrado.</p>
           </div>
           <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full bg-secondary text-sm font-bold">x</button>
         </div>
@@ -397,11 +414,11 @@ function PasswordRecoveryModal({
           </Field>
           {sent && (
             <>
-              <Field label="C?digo" icon={Lock}>
+              <Field label="Código" icon={Lock}>
                 <Input value={recovery.code} onChange={(event) => onChange({ code: event.target.value })} className="h-12 rounded-2xl bg-secondary pl-10" placeholder="000000" inputMode="numeric" />
               </Field>
               <Field label="Nova senha" icon={Lock}>
-                <Input value={recovery.password} onChange={(event) => onChange({ password: event.target.value })} className="h-12 rounded-2xl bg-secondary pl-10" type="password" placeholder="M?nimo 6 caracteres" />
+                <Input value={recovery.password} onChange={(event) => onChange({ password: event.target.value })} className="h-12 rounded-2xl bg-secondary pl-10" type="password" placeholder="Mínimo 6 caracteres" />
               </Field>
             </>
           )}
@@ -410,7 +427,7 @@ function PasswordRecoveryModal({
         <div className="mt-6 flex gap-3">
           <Button type="button" variant="outline" onClick={onClose} className="h-11 flex-1 rounded-2xl" disabled={loading}>Cancelar</Button>
           <Button type="button" onClick={sent ? onReset : onRequestCode} className="h-11 flex-1 rounded-2xl bg-gradient-primary font-bold" disabled={loading}>
-            {loading ? "Aguarde..." : sent ? "Redefinir" : "Enviar c?digo"}
+            {loading ? "Aguarde..." : sent ? "Redefinir" : "Enviar código"}
           </Button>
         </div>
       </div>
