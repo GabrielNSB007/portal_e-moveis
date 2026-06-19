@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 
 import express, { type Application } from "express";
 import cors from "cors";
@@ -22,7 +22,7 @@ export default class App {
   constructor(port = 8080) {
     this.app = express();
     this.app.use(cors({ origin: "*" }));
-    this.app.use(express.json());
+    this.app.use(express.json({ limit: "8mb" }));
     this.port = port;
     this.setupRoutes();
   }
@@ -42,3 +42,4 @@ export default class App {
 
 const app = new App(Number(process.env.PORT ?? 8080));
 app.start();
+

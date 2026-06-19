@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   CreatePreferenceFormData,
   UpdatePreferenceFormData,
   ReadDeletePreference,
@@ -40,11 +40,13 @@ export const findPreferenceById = async (id: string) => {
   return response.data;
 };
 
-export const findManyPreferences = async () => {
-  const response = await api.get<ReadDeletePreference[]>("/preferences");
-  return response.data;
+export const findManyPreferences = async (): Promise<ReadDeletePreference[]> => {
+  const response = await api.get<ReadDeletePreference[] | { items?: ReadDeletePreference[] }>("/preferences");
+  const payload = response.data;
+  return Array.isArray(payload) ? payload : payload.items ?? [];
 };
 
 export const deletePreference = async (id: string) => {
   await api.delete(`/preferences/${id}`);
 };
+

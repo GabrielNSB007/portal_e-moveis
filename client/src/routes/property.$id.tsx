@@ -109,7 +109,7 @@ function PropertyDetails() {
   if (!p) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center p-8 text-center text-muted-foreground">
-        <p className="mb-4 text-lg">Imóvel não encontrado.</p>
+        <p className="mb-4 text-lg">Imovel nao encontrado.</p>
         <Link to="/explore">
           <Button variant="outline">Voltar para Explorar</Button>
         </Link>
@@ -128,6 +128,20 @@ function PropertyDetails() {
       return;
     }
     navigate({ to: "/explore" });
+  };
+
+  const shareProperty = async () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: p?.title ?? "Imovel", url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copiado.");
+    } catch {
+      toast.info("Nao foi possivel compartilhar agora.");
+    }
   };
 
   const toggleFav = async () => {
@@ -226,7 +240,7 @@ function PropertyDetails() {
   const specs = [
     { icon: BedDouble, label: "Quartos", value: p.bedrooms },
     { icon: Bath, label: "Banheiros", value: p.bathrooms },
-    { icon: Maximize, label: "Área", value: `${p.area}m²` },
+    { icon: Maximize, label: "Area", value: `${p.area}m2` },
     { icon: Car, label: "Vagas", value: p.parking },
   ];
 
@@ -234,10 +248,10 @@ function PropertyDetails() {
     /* WRAPPER EXTERNO: 100% de largura pintando o fundo por igual */
     <div className="min-h-dvh w-full bg-background text-foreground">
       
-      {/* WRAPPER INTERNO: Centraliza o conteúdo e limita em 1200px */}
+      {/* WRAPPER INTERNO */}
       <div className="mx-auto pb-28 lg:max-w-[1200px] lg:px-8 lg:py-8 lg:pb-8">
         
-        {/* HEADER DESKTOP: Título acima das fotos */}
+        {/* HEADER DESKTOP */}
         <div className="hidden lg:mb-6 lg:block">
           <div className="flex items-center justify-between">
             <button
@@ -248,7 +262,7 @@ function PropertyDetails() {
               Voltar para a busca
             </button>
             <div className="flex gap-3">
-              <button className="flex items-center gap-2 rounded-xl bg-secondary px-4 py-2 text-sm font-semibold transition hover:bg-secondary/80">
+              <button onClick={shareProperty} className="flex items-center gap-2 rounded-xl bg-secondary px-4 py-2 text-sm font-semibold transition hover:bg-secondary/80">
                 <Share2 className="h-4 w-4" /> Compartilhar
               </button>
               <button
@@ -279,7 +293,7 @@ function PropertyDetails() {
           </div>
         </div>
 
-        {/* GALERIA MOBILE: Slider clássico */}
+        {/* GALERIA MOBILE */}
         <div className="relative lg:hidden">
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-secondary">
             <img src={galleryImages[photo]} alt={p.title} className="h-full w-full object-cover" />
@@ -295,7 +309,7 @@ function PropertyDetails() {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div className="flex gap-2">
-              <button className="grid h-10 w-10 place-items-center rounded-full bg-white/30 text-white backdrop-blur-md transition-transform active:scale-90">
+              <button onClick={shareProperty} className="grid h-10 w-10 place-items-center rounded-full bg-white/30 text-white backdrop-blur-md transition-transform active:scale-90">
                 <Share2 className="h-5 w-5" />
               </button>
               <button
@@ -343,16 +357,16 @@ function PropertyDetails() {
               <img src={galleryImages[4] || galleryImages[0]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
             </div>
           </div>
-          <Button variant="secondary" className="absolute bottom-4 right-4 flex gap-2 font-semibold shadow-lg">
+          <Button variant="secondary" onClick={() => toast.info("As fotos principais ja estao visiveis nesta pagina.")} className="absolute bottom-4 right-4 flex gap-2 font-semibold shadow-lg">
             <Grid3X3 className="h-4 w-4" /> Mostrar todas as fotos
           </Button>
         </div>
 
-        {/* CONTEÚDO: 2 Colunas no Desktop */}
+        {/* CONTEUDO */}
         <div className="lg:mt-8 lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-8 xl:grid-cols-[1fr_420px]">
           <main className="px-5 pt-5 lg:px-0 lg:pt-0">
             
-            {/* Título Mobile (Oculto no Desktop) */}
+            {/* Titulo Mobile */}
             <div className="lg:hidden">
               <div className="flex items-start justify-between gap-3">
                 <MatchBadge value={p.match} variant="soft" />
@@ -385,13 +399,13 @@ function PropertyDetails() {
             >
               <div className="flex items-center gap-2 text-base font-bold text-primary lg:text-lg">
                 <Sparkles className="h-5 w-5" />
-                Por que combina com você
+                Por que combina com voce
               </div>
               <p className="mt-2 text-sm leading-relaxed text-foreground/80 lg:text-base">{p.reason}</p>
             </motion.div>
 
             <section className="mt-7 border-t border-border pt-7">
-              <h3 className="text-lg font-bold lg:text-xl">Sobre o imóvel</h3>
+              <h3 className="text-lg font-bold lg:text-xl">Sobre o imovel</h3>
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground lg:text-base">{p.description}</p>
             </section>
 
@@ -427,7 +441,7 @@ function PropertyDetails() {
                 <div className="mt-4 overflow-hidden rounded-3xl border border-success/30 bg-success/5 shadow-sm">
                   <div className="flex items-center gap-2 border-b border-success/20 bg-success/10 px-5 py-3 text-sm font-semibold text-success">
                     <ShieldCheck className="h-4 w-4" />
-                    Contato liberado pelo match mútuo
+                    Contato liberado pelo match mutuo
                   </div>
                   <div className="space-y-1 p-4">
                     <ContactItem icon={Send} label="WhatsApp" value={p.contact.whatsapp} />
@@ -441,8 +455,7 @@ function PropertyDetails() {
                     <Lock className="h-6 w-6" />
                   </div>
                   <div className="text-sm leading-relaxed text-muted-foreground">
-                    Os dados de contato serão liberados automaticamente após o{" "}
-                    <strong className="text-foreground">match mútuo</strong>. Isso protege sua privacidade e evita spam.
+                    Os dados de contato serao liberados automaticamente apos o <strong className="text-foreground">match mutuo</strong>. Isso protege sua privacidade e evita spam.
                   </div>
                 </div>
               )}
@@ -465,7 +478,7 @@ function PropertyDetails() {
               <div className="mt-6 space-y-4 rounded-2xl bg-secondary/50 p-5">
                 <h3 className="text-sm font-bold">Resumo Financeiro</h3>
                 <div className="space-y-3">
-                  <SummaryRow label="Condomínio" value="R$ 850" />
+                  <SummaryRow label="Condominio" value="R$ 850" />
                   <SummaryRow label="IPTU" value="R$ 2.400 / ano" />
                 </div>
               </div>
@@ -476,7 +489,7 @@ function PropertyDetails() {
                   <div className="mt-3 overflow-hidden rounded-2xl border border-success/30 bg-success/5">
                     <div className="flex items-center gap-2 border-b border-success/20 bg-success/10 px-4 py-2 text-xs font-bold text-success">
                       <ShieldCheck className="h-4 w-4" />
-                      Liberado pelo match mútuo
+                      Liberado pelo match mutuo
                     </div>
                     <div className="space-y-1 p-3">
                       <ContactItem icon={Send} label="WhatsApp" value={p.contact.whatsapp} />
@@ -490,7 +503,7 @@ function PropertyDetails() {
                       <Lock className="h-5 w-5" />
                     </div>
                     <div className="text-xs leading-relaxed text-muted-foreground">
-                      Os contatos serão liberados após o <strong className="text-foreground">match mútuo</strong>.
+                      Os contatos serao liberados apos o <strong className="text-foreground">match mutuo</strong>.
                     </div>
                   </div>
                 )}
@@ -500,7 +513,7 @@ function PropertyDetails() {
         </div>
 
         <section className="mt-8 px-5 lg:px-0">
-          <h2 className="text-xl font-bold lg:text-2xl">Imóveis similares</h2>
+          <h2 className="text-xl font-bold lg:text-2xl">Imoveis similares</h2>
           <div className="mt-4 flex gap-4 overflow-x-auto pb-3 no-scrollbar lg:grid lg:grid-cols-4 lg:overflow-visible lg:pb-0">
             {similar.map((item) => (
               <div key={item.id} className="w-[260px] shrink-0 lg:w-auto">
