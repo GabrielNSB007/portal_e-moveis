@@ -29,7 +29,6 @@ export class OfferController {
     }
   }
 
-
   async readMine(req: Request, res: Response) {
     try {
       const userId = res.locals.userId;
@@ -56,7 +55,9 @@ export class OfferController {
     try {
       const { id } = req.params;
 
-      const offer = await this.offerService.findById(id);
+      const requesterId = res.locals.userId as string | undefined;
+
+      const offer = await this.offerService.findById(id, requesterId);
 
       return res.status(200).json(offer);
     } catch (err: any) {

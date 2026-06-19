@@ -27,6 +27,7 @@ const nullableValueSchema = z.preprocess(
 export const CreateProposalSchema = z.object({
   body: z.object({
     offerId: idSchema,
+    matchId: idSchema.nullable().optional(),
     message: nullableMessageSchema,
     value: nullableValueSchema,
   }),

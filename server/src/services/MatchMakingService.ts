@@ -250,7 +250,15 @@ export class MatchmakingService {
             },
           ],
         },
-        status ? { status } : {},
+        status
+          ? {
+              status,
+            }
+          : {
+              status: {
+                not: MatchStatus.RECUSADO,
+              },
+            },
         typeof minScore === "number"
           ? {
               score: {
@@ -258,6 +266,18 @@ export class MatchmakingService {
               },
             }
           : {},
+        {
+          OR: [
+            {
+              offer: {
+                status: OfferStatus.ATIVA,
+              },
+            },
+            {
+              status: MatchStatus.FEITO,
+            },
+          ],
+        },
       ],
     };
 
@@ -891,5 +911,3 @@ export class MatchmakingService {
     return Number(value.toFixed(2));
   }
 }
-
-

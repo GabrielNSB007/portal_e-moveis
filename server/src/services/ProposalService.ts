@@ -1,4 +1,4 @@
-﻿import { MatchStatus, OfferStatus, ProposalStatus } from "@prisma/client";
+﻿import { OfferStatus, ProposalStatus } from "@prisma/client";
 
 import {
   CreateProposalDTO,
@@ -7,21 +7,11 @@ import {
 } from "../DTOs/proposalDTO.js";
 import { AppError } from "../errors/AppError.js";
 import { ProposalRepository } from "../repositories/ProposalRepository.js";
-import { prisma } from "../prisma.js";
 
 export class ProposalService {
   constructor(private readonly proposalRepository = new ProposalRepository()) {}
 
   async create(data: CreateProposalDTO) {
-    const buyer = await prisma.user.findUnique({
-      where: { id: data.buyerId },
-      select: { id: true },
-    });
-
-    if (!buyer) {
-      throw new AppError("Sessao expirada. Faca login novamente.", 401);
-    }
-
     const offer = await this.proposalRepository.findOfferById(data.offerId);
 
     if (!offer) {
@@ -42,6 +32,21 @@ export class ProposalService {
       );
     }
 
+    if (data.matchId) {
+      const match = await this.proposalRepository.findMatchForProposal(
+        data.matchId,
+        data.offerId,
+        data.buyerId,
+      );
+
+      if (!match) {
+        throw new AppError(
+          "Match não encontrado para esta oferta e comprador",
+          404,
+        );
+      }
+    }
+
     const existingProposal =
       await this.proposalRepository.findExistingByBuyerAndOffer(
         data.offerId,
@@ -54,19 +59,10 @@ export class ProposalService {
 
     const proposal = await this.proposalRepository.create(data);
 
-    await prisma.notification.create({
-      data: {
-        userId: proposal.offer.userId,
-        offerId: proposal.offerId,
-        type: "proposal",
-        title: "Nova proposta recebida",
-        description: `${proposal.buyer.name} demonstrou interesse em ${proposal.offer.title}.`,
-      },
-    });
-
     await this.proposalRepository.markRelatedMatchesAsProposalSent(
       data.offerId,
       data.buyerId,
+      data.matchId,
     );
 
     return proposal;
@@ -175,43 +171,10 @@ export class ProposalService {
       throw new AppError("Vendedor só pode aceitar ou recusar proposta", 422);
     }
 
-    const updated = await this.proposalRepository.updateStatus(id, data);
-
-    if (data.status === ProposalStatus.ACEITA) {
-      await prisma.match.updateMany({
-        where: { offerId: updated.offerId, preference: { userId: updated.buyerId } },
-        data: { status: MatchStatus.FEITO },
-      });
-    }
-
-    if (data.status === ProposalStatus.RECUSADA) {
-      await prisma.match.updateMany({
-        where: { offerId: updated.offerId, preference: { userId: updated.buyerId } },
-        data: { status: MatchStatus.RECUSADO },
-      });
-    }
-
-    const title = data.status === ProposalStatus.ACEITA
-      ? "Proposta aceita"
-      : data.status === ProposalStatus.RECUSADA
-        ? "Proposta recusada"
-        : "Proposta atualizada";
-
-    const targetUserId = data.status === ProposalStatus.CANCELADA
-      ? updated.offer.userId
-      : updated.buyerId;
-
-    await prisma.notification.create({
-      data: {
-        userId: targetUserId,
-        offerId: updated.offerId,
-        type: data.status === ProposalStatus.ACEITA ? "match" : "proposal",
-        title,
-        description: `${updated.offer.title}: status alterado para ${data.status.toLowerCase()}.`,
-      },
-    });
-
-    return updated;
+    return this.proposalRepository.updateStatusAndApplyBusinessEffects(
+      id,
+      data,
+    );
   }
 
   async cancel(id: string, requesterId: string) {
@@ -220,4 +183,3 @@ export class ProposalService {
     });
   }
 }
-

@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, ProposalStatus } from "@prisma/client";
 
 import { prisma } from "../prisma.js";
 import { CreateOfferDTO, UpdateOfferDTO } from "../DTOs/offerDTO.js";
@@ -166,5 +166,20 @@ export default class OfferRepository {
         media: true,
       },
     });
+  }
+
+  async hasAcceptedProposalForUser(offerId: string, userId: string) {
+    const proposal = await prisma.proposal.findFirst({
+      where: {
+        offerId,
+        buyerId: userId,
+        status: ProposalStatus.ACEITA,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return Boolean(proposal);
   }
 }

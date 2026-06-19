@@ -1,3 +1,5 @@
+import { OfferStatus } from "@prisma/client";
+
 import { CreateOfferDTO, UpdateOfferDTO } from "../DTOs/offerDTO.js";
 import { AppError } from "../errors/AppError.js";
 import OfferRepository from "../repositories/OfferRepository.js";
@@ -32,11 +34,23 @@ export class OfferService {
     });
   }
 
-  async findById(id: string) {
+  async findById(id: string, requesterId?: string) {
     const offer = await this.offerRepository.getById(id);
 
     if (!offer) {
       throw new AppError("Oferta não encontrada", 404);
+    }
+
+    if (offer.status === OfferStatus.PAUSADA) {
+      const isOwner = requesterId && offer.userId === requesterId;
+
+      const isAcceptedBuyer = requesterId
+        ? await this.offerRepository.hasAcceptedProposalForUser(id, requesterId)
+        : false;
+
+      if (!isOwner && !isAcceptedBuyer) {
+        throw new AppError("Este imóvel está em negociação", 423);
+      }
     }
 
     return offer;

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Router as ExpressRouter } from "express";
-
+import { optionalAuthenticate } from "../middleware/optionalAuthenticate.js";
 import { OfferController } from "../controllers/OfferController.js";
 import { Route } from "../decorator/routeDecorator.js";
 import { authenticate } from "../middleware/authenticate.js";
@@ -33,12 +33,18 @@ export class OfferRoutes {
       this.offerController.readAll(req, res),
     );
 
-    this.router.get("/mine", authenticate, validate(ListOffersSchema), (req, res) =>
-      this.offerController.readMine(req, res),
+    this.router.get(
+      "/mine",
+      authenticate,
+      validate(ListOffersSchema),
+      (req, res) => this.offerController.readMine(req, res),
     );
 
-    this.router.get("/:id", validate(OfferIdParamsSchema), (req, res) =>
-      this.offerController.readById(req, res),
+    this.router.get(
+      "/:id",
+      optionalAuthenticate,
+      validate(OfferIdParamsSchema),
+      (req, res) => this.offerController.readById(req, res),
     );
 
     this.router.patch(
