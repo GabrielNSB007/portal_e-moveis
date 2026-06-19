@@ -25,7 +25,7 @@ constructor(port = 8080) {
       cors({
         origin: [
           "http://localhost:8080",
-          "https://portal-e-moveis.vercel.app/"
+          "https://portal-e-moveis.vercel.app"
         ],
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
