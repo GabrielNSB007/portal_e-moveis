@@ -194,14 +194,16 @@ server/src/
 <div align="center">
     <table width="100%">
         <tr>
-            <td align="center"><a href="https://github.com/helington"><img src="https://avatars.githubusercontent.com/u/78865806?v=4" width="100px"><br /><sub><b>Helington Willamy</b></sub></a><br/></td>
-            <td align="center"><a href="https://github.com/GabrielNSB007"><img src="https://avatars.githubusercontent.com/u/154392376?v=4" width="100px"><br /><sub><b>Gabriel Nóbrega</b></sub></a><br/></td>
-            <td align="center"><a href="https://github.com/luismiguuel"><img src="https://avatars.githubusercontent.com/u/224866738?v=4" width="100px"><br /><sub><b>Luis Miguel</b></sub></a><br/></td>
-            <td align="center"><a href="https://github.com/vitorlins0"><img src="https://avatars.githubusercontent.com/u/224650528?v=4" width="100px"><br /><sub><b>João Vitor</b></sub></a><br/></td>
-            <td align="center"><a href="https://github.com/henriqesl    "><img src="https://avatars.githubusercontent.com/u/163488602?v=4" width="100px"><br /><sub><b>Henrique Lima</b></sub></a><br/></td>
-            <td align="center"><a href="https://github.com/juniorcruz7"><img src="https://avatars.githubusercontent.com/u/224153797?v=4" width="100px"><br /><sub><b>Severino João</b></sub></a><br/></td>
-            <td align="center"><a href="https://github.com/LucasFernandesCS"><img src="https://avatars.githubusercontent.com/u/207383959?v=4" width="100px"><br /><sub><b>Lucas Fernandes</b></sub></a><br/></td>
             <td align="center"><a href="https://github.com/diegodvsmelo"><img src="https://avatars.githubusercontent.com/u/118706124?v=4" width="100px"><br /><sub><b>Diego Davis</b></sub></a><br/></td>
+            <td align="center"><a href="https://github.com/GabrielNSB007"><img src="https://avatars.githubusercontent.com/u/154392376?v=4" width="100px"><br /><sub><b>Gabriel Nóbrega</b></sub></a><br/></td>
+            <td align="center"><a href="https://github.com/helington"><img src="https://avatars.githubusercontent.com/u/78865806?v=4" width="100px"><br /><sub><b>Helington Willamy</b></sub></a><br/></td>
+            <td align="center"><a href="https://github.com/henriqesl"><img src="https://avatars.githubusercontent.com/u/163488602?v=4" width="100px"><br /><sub><b>Henrique Lima</b></sub></a><br/></td>
+        </tr>
+        <tr>
+            <td align="center"><a href="https://github.com/vitorlins0"><img src="https://avatars.githubusercontent.com/u/224650528?v=4" width="100px"><br /><sub><b>João Vitor</b></sub></a><br/></td>
+            <td align="center"><a href="https://github.com/LucasFernandesCS"><img src="https://avatars.githubusercontent.com/u/207383959?v=4" width="100px"><br /><sub><b>Lucas Fernandes</b></sub></a><br/></td>
+            <td align="center"><a href="https://github.com/luismiguuel"><img src="https://avatars.githubusercontent.com/u/224866738?v=4" width="100px"><br /><sub><b>Luis Miguel</b></sub></a><br/></td>
+            <td align="center"><a href="https://github.com/juniorcruz7"><img src="https://avatars.githubusercontent.com/u/224153797?v=4" width="100px"><br /><sub><b>Severino João</b></sub></a><br/></td>
         </tr>
     </table>
 </div>
