@@ -1,4 +1,4 @@
-import { OfferStatus, ProposalStatus } from "@prisma/client";
+﻿import { MatchStatus, OfferStatus, ProposalStatus } from "@prisma/client";
 
 import {
   CreateProposalDTO,
@@ -177,6 +177,20 @@ export class ProposalService {
 
     const updated = await this.proposalRepository.updateStatus(id, data);
 
+    if (data.status === ProposalStatus.ACEITA) {
+      await prisma.match.updateMany({
+        where: { offerId: updated.offerId, preference: { userId: updated.buyerId } },
+        data: { status: MatchStatus.FEITO },
+      });
+    }
+
+    if (data.status === ProposalStatus.RECUSADA) {
+      await prisma.match.updateMany({
+        where: { offerId: updated.offerId, preference: { userId: updated.buyerId } },
+        data: { status: MatchStatus.RECUSADO },
+      });
+    }
+
     const title = data.status === ProposalStatus.ACEITA
       ? "Proposta aceita"
       : data.status === ProposalStatus.RECUSADA
@@ -206,3 +220,4 @@ export class ProposalService {
     });
   }
 }
+

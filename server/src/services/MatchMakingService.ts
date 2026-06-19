@@ -1,4 +1,4 @@
-import {
+﻿import {
   Amenity,
   MatchStatus,
   Offer,
@@ -66,6 +66,7 @@ const MATCH_INCLUDE = {
         select: {
           id: true,
           name: true,
+          email: true,
           phone: true,
           role: true,
         },
@@ -78,6 +79,7 @@ const MATCH_INCLUDE = {
         select: {
           id: true,
           name: true,
+          email: true,
           phone: true,
           role: true,
         },
@@ -889,3 +891,5 @@ export class MatchmakingService {
     return Number(value.toFixed(2));
   }
 }
+
+

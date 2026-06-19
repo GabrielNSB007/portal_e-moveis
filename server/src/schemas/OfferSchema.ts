@@ -11,6 +11,10 @@ const optionalString = z.preprocess((value) => {
 
 const requiredString = (message: string) => z.string().trim().min(1, message);
 
+const mediaUrlSchema = z.string().trim().min(1, "URL da mídia é obrigatória").refine((value) => {
+  return /^https?:\/\//i.test(value) || /^data:image\/(png|jpe?g|webp);base64,/i.test(value);
+}, "A mídia deve ser uma URL http(s) ou uma imagem PNG/JPG/WebP enviada.");
+
 const numberSchema = z.coerce
   .number({
     invalid_type_error: "O valor deve ser numérico",
