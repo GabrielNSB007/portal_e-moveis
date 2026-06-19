@@ -4,8 +4,8 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/App.ts",
-    "start": "pnpm exec prisma generate && pnpm exec prisma db push && pnpm run build && node dist/src/App.js",
     "build": "tsc",
+    "start": "pnpm exec prisma db push && node dist/App.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "seed": "tsx prisma/seed.ts"
