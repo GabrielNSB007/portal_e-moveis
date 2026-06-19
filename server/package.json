@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/App.ts",
     "build": "tsc",
-    "start": "pnpm exec prisma db push && node dist/App.js",
+    "start": "pnpm exec prisma db push --accept-data-loss && node dist/App.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "seed": "tsx prisma/seed.ts"
