@@ -13,6 +13,15 @@ export class ProposalService {
   constructor(private readonly proposalRepository = new ProposalRepository()) {}
 
   async create(data: CreateProposalDTO) {
+    const buyer = await prisma.user.findUnique({
+      where: { id: data.buyerId },
+      select: { id: true },
+    });
+
+    if (!buyer) {
+      throw new AppError("Sessao expirada. Faca login novamente.", 401);
+    }
+
     const offer = await this.proposalRepository.findOfferById(data.offerId);
 
     if (!offer) {

@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { fmtCurrency } from "@/mock/data";
+import { citiesForState, DEFAULT_CITY, DEFAULT_STATE, STATE_OPTIONS } from "@/lib/location-options";
 import { getAuthToken, getSessionEmail, markOnboardingComplete } from "@/lib/auth-session";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -28,31 +29,12 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 const OBJECTIVES = [
-  { value: "Comprar", desc: "Buscar im?vel para morar", icon: Home },
+  { value: "Comprar", desc: "Buscar imóvel para morar", icon: Home },
   { value: "Alugar", desc: "Encontrar aluguel ideal", icon: Building2 },
   { value: "Investir", desc: "Priorizar retorno e liquidez", icon: Coins },
 ];
 
-const CITY_NEIGHBORHOODS: Record<string, string[]> = {
-  "Sao Paulo": ["Pinheiros", "Vila Madalena", "Itaim Bibi", "Moema", "Perdizes", "Vila Olimpia", "Jardins", "Tatuape", "Santana", "Alto de Pinheiros"],
-  "Rio de Janeiro": ["Botafogo", "Copacabana", "Ipanema", "Leblon", "Tijuca", "Barra da Tijuca", "Flamengo", "Laranjeiras", "Recreio", "Jardim Botanico"],
-  Curitiba: ["Batel", "Agua Verde", "Bigorrilho", "Cabral", "Centro Civico", "Mercês", "Cristo Rei", "Juveve", "Ecoville", "Santa Felicidade"],
-  "Belo Horizonte": ["Savassi", "Lourdes", "Funcionarios", "Sion", "Buritis", "Cidade Nova", "Belvedere", "Serra", "Anchieta", "Santa Efigenia"],
-  "Porto Alegre": ["Moinhos de Vento", "Bela Vista", "Petropolis", "Menino Deus", "Cidade Baixa", "Auxiliadora", "Rio Branco", "Tristeza", "Higienopolis", "Santana"],
-  Florianopolis: ["Centro", "Agronomica", "Trindade", "Itacorubi", "Coqueiros", "Campeche", "Lagoa da Conceicao", "Jurere", "Ingleses", "Canasvieiras"],
-  Brasilia: ["Asa Sul", "Asa Norte", "Sudoeste", "Noroeste", "Lago Sul", "Lago Norte", "Aguas Claras", "Guara", "Taguatinga", "Park Sul"],
-  Salvador: ["Barra", "Pituba", "Rio Vermelho", "Ondina", "Caminho das Arvores", "Horto Florestal", "Itaigara", "Imbui", "Stella Maris", "Patamares"],
-  Recife: ["Boa Viagem", "Pina", "Casa Forte", "Gracas", "Espinheiro", "Aflitos", "Madalena", "Derby", "Parnamirim", "Ilha do Retiro"],
-  Fortaleza: ["Meireles", "Aldeota", "Cocó", "Mucuripe", "Varjota", "Dionisio Torres", "Guararapes", "Papicu", "Praia de Iracema", "Cambeba"],
-  Goiania: ["Setor Bueno", "Jardim Goias", "Marista", "Oeste", "Sul", "Universitario", "Nova Suica", "Bueno", "Alto da Gloria", "Pedro Ludovico"],
-  Vitoria: ["Praia do Canto", "Jardim Camburi", "Jardim da Penha", "Mata da Praia", "Enseada do Sua", "Bento Ferreira", "Santa Lucia", "Barro Vermelho", "Centro", "Ilha do Boi"],
-  Natal: ["Ponta Negra", "Tirol", "Petropolis", "Lagoa Nova", "Capim Macio", "Candelaria", "Neopolis", "Areia Preta", "Ribeira", "Barro Vermelho"],
-  Maceio: ["Ponta Verde", "Pajucara", "Jatiuca", "Cruz das Almas", "Mangabeiras", "Farol", "Gruta de Lourdes", "Serraria", "Ponta Grossa", "Centro"],
-  Manaus: ["Adrianopolis", "Ponta Negra", "Vieiralves", "Nossa Senhora das Gracas", "Aleixo", "Parque 10", "Chapada", "Flores", "Centro", "Dom Pedro"],
-};
-
-const CITIES = Object.keys(CITY_NEIGHBORHOODS);
-const TYPES = ["Apartamento", "Casa", "Studio", "Cobertura", "Casa em condominio", "Loft", "Garden", "Comercial"];
+const TYPES = ["Apartamento", "Casa", "Studio"];
 const AMENITIES = [
   "Pet friendly",
   "Piscina",
@@ -73,8 +55,6 @@ const typeToBackend = (type: string) => {
   const normalized = type.toLowerCase();
   if (normalized.includes("casa")) return "CASA";
   if (normalized.includes("studio")) return "STUDIO";
-  if (normalized.includes("cobertura")) return "COBERTURA";
-  if (normalized.includes("terreno")) return "TERRENO";
   return "APARTAMENTO";
 };
 
@@ -88,7 +68,7 @@ const amenityToBackend = (amenity: string) => {
   if (normalized.includes("mobiliado")) return "MOBILIADO";
   if (normalized.includes("pet")) return "PET_FRIENDLY";
   if (normalized.includes("varanda")) return "VARANDA";
-  if (normalized.includes("servico") || normalized.includes("servi?o")) return "AREA_SERVICO";
+  if (normalized.includes("servico") || normalized.includes("serviço")) return "AREA_SERVICO";
   return null;
 };
 
@@ -103,8 +83,8 @@ function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [objective, setObjective] = useState("Comprar");
-  const [city, setCity] = useState("Sao Paulo");
-  const [neighborhoods, setNeighborhoods] = useState<string[]>(["Pinheiros"]);
+  const [selectedState, setSelectedState] = useState(DEFAULT_STATE);
+  const [city, setCity] = useState(DEFAULT_CITY);
   const [budget, setBudget] = useState([600000, 1500000]);
   const [types, setTypes] = useState<string[]>(["Apartamento"]);
   const [bedrooms, setBedrooms] = useState(2);
@@ -162,17 +142,18 @@ function Onboarding() {
         minBathrooms: bathrooms,
         minParkingSpots: parking,
         propertyTypes: Array.from(new Set(types.map(typeToBackend))),
-        neighborhoods,
+        neighborhoods: [],
         city,
-        state: city === "Brasilia" ? "DF" : "BR",
+        state: selectedState,
         desiredAmenities: Array.from(new Set(amenities.map(amenityToBackend).filter(Boolean))),
         isActive: true,
       });
+      localStorage.setItem("emoveis-listing-purpose", objective === "Alugar" ? "RENT" : "SALE");
       markOnboardingComplete(getSessionEmail());
-      toast.success("Prefer?ncias salvas com sucesso!");
+      toast.success("Preferências salvas com sucesso!");
       setTimeout(() => navigate({ to: "/explore" }), 900);
     } catch (error: any) {
-      toast.error(error?.response?.data?.error ?? "N?o foi poss?vel salvar suas prefer?ncias.");
+      toast.error(error?.response?.data?.error ?? "Não foi possível salvar suas preferências.");
     }
   };
 
@@ -222,7 +203,7 @@ function Onboarding() {
               )}
 
               {step === 1 && (
-                <Step title="Qual ? o seu momento?" subtitle="Isso muda pre?o, filtros e prioridade dos resultados.">
+                <Step title="Qual é o seu momento?" subtitle="Isso muda preço, filtros e prioridade dos resultados.">
                   <div className="grid gap-3">
                     {OBJECTIVES.map(({ value, desc, icon: Icon }) => (
                       <ChoiceCard key={value} active={objective === value} onClick={() => {
@@ -242,30 +223,31 @@ function Onboarding() {
               )}
 
               {step === 2 && (
-                <Step title="Onde voce procura?" subtitle="Escolha uma capital. Os bairros mudam conforme a cidade.">
-                  <SectionLabel icon={MapPin} title="Cidade" />
+                <Step title="Onde você procura?" subtitle="Escolha o estado e a cidade para calibrar sua busca.">
+                  <SectionLabel icon={MapPin} title="Estado" />
                   <ChipGroup
-                    items={CITIES}
-                    selected={[city]}
+                    items={STATE_OPTIONS.map((state) => state.value)}
+                    labels={Object.fromEntries(STATE_OPTIONS.map((state) => [state.value, state.label]))}
+                    selected={[selectedState]}
                     onToggle={(value) => {
-                      setCity(value);
-                      setNeighborhoods([]);
+                      setSelectedState(value);
+                      setCity(citiesForState(value)[0]);
                     }}
                     columns="md:grid-cols-5"
                     single
                   />
-                  <SectionLabel icon={MapPin} title={`Principais bairros em ${city}`} className="mt-7" />
+                  <SectionLabel icon={MapPin} title="Cidade" className="mt-7" />
                   <ChipGroup
-                    items={CITY_NEIGHBORHOODS[city] ?? []}
-                    selected={neighborhoods}
-                    onToggle={(value) => toggle(neighborhoods, value, setNeighborhoods)}
-                    columns="md:grid-cols-5"
+                    items={citiesForState(selectedState)}
+                    selected={[city]}
+                    onToggle={setCity}
+                    columns="md:grid-cols-4"
+                    single
                   />
                 </Step>
               )}
-
               {step === 3 && (
-                <Step title={objective === "Alugar" ? "Qual aluguel cabe no mes?" : "Qual faixa de pre?o faz sentido?"} subtitle="Esse filtro tamb?m aparece na tela Explorar.">
+                <Step title={objective === "Alugar" ? "Qual aluguel cabe no mês?" : "Qual faixa de preço faz sentido?"} subtitle="Esse filtro também aparece na tela Explorar.">
                   <RangeCard
                     value={budget}
                     onChange={setBudget}
@@ -278,17 +260,17 @@ function Onboarding() {
               )}
 
               {step === 4 && (
-                <Step title="Que tipo de im?vel voce aceita?" subtitle="Selecione todos que fariam sentido.">
+                <Step title="Que tipo de imóvel você aceita?" subtitle="Selecione todos que fariam sentido.">
                   <ChipGroup items={TYPES} selected={types} onToggle={(value) => toggle(types, value, setTypes)} columns="md:grid-cols-4" />
                 </Step>
               )}
 
               {step === 5 && (
-                <Step title="Estrutura minima" subtitle="Quartos, banheiros, vaga e area filtram bastante o feed.">
+                <Step title="Estrutura mínima" subtitle="Quartos, banheiros, vaga e área filtram bastante o feed.">
                   <Counter icon={BedDouble} label="Quartos" value={bedrooms} setValue={setBedrooms} />
                   <Counter icon={Bath} label="Banheiros" value={bathrooms} setValue={setBathrooms} />
                   <Counter icon={Car} label="Vagas" value={parking} setValue={setParking} min={0} />
-                  <SectionLabel icon={Maximize2} title="Area util" className="mt-6" />
+                  <SectionLabel icon={Maximize2} title="Área útil" className="mt-6" />
                   <RangeCard value={area} onChange={setArea} min={20} max={400} step={10} suffix="m2" />
                 </Step>
               )}
@@ -300,13 +282,13 @@ function Onboarding() {
               )}
 
               {step === 7 && (
-                <Step title="O que precisa estar perto?" subtitle="Ajuda o match a priorizar localiza??o al?m do bairro.">
+                <Step title="O que precisa estar perto?" subtitle="Ajuda o match a priorizar localização e rotina.">
                   <ChipGroup items={NEARBY} selected={nearby} onToggle={(value) => toggle(nearby, value, setNearby)} columns="md:grid-cols-4" />
                 </Step>
               )}
 
               {step === 8 && (
-                <Step title="Qual visual combina mais?" subtitle="N?o elimina resultados; so ajuda a ordenar.">
+                <Step title="Qual visual combina mais?" subtitle="Não elimina resultados; só ajuda a ordenar.">
                   <div className="mx-auto grid max-w-2xl grid-cols-2 gap-3 md:gap-4">
                     {STYLES.map((item) => (
                       <button
@@ -333,14 +315,14 @@ function Onboarding() {
               )}
 
               {step === 9 && (
-                <Step title="Perfil pronto para buscar" subtitle="Voce pode editar tudo depois nos filtros e no perfil.">
+                <Step title="Perfil pronto para buscar" subtitle="Você pode editar tudo depois nos filtros e no perfil.">
                   <div className="space-y-3">
                     <SummaryRow label="Objetivo" value={objective} />
-                    <SummaryRow label="Regiao" value={[city, ...neighborhoods].join(", ")} />
-                    <SummaryRow label="Preco" value={`${fmtCurrency(budget[0])} ate ${fmtCurrency(budget[1])}`} />
+                    <SummaryRow label="Região" value={`${city}, ${selectedState}`} />
+                    <SummaryRow label="Preço" value={`${fmtCurrency(budget[0])} até ${fmtCurrency(budget[1])}`} />
                     <SummaryRow label="Tipos" value={types.join(", ")} />
                     <SummaryRow label="Estrutura" value={`${bedrooms}+ quartos, ${bathrooms}+ banheiros, ${parking}+ vagas`} />
-                    <SummaryRow label="Comodidades" value={amenities.length ? amenities.join(", ") : "Sem prefer?ncia"} />
+                    <SummaryRow label="Comodidades" value={amenities.length ? amenities.join(", ") : "Sem preferência"} />
                   </div>
                 </Step>
               )}
@@ -354,7 +336,7 @@ function Onboarding() {
             onClick={() => (step === steps.length - 1 ? finish() : setStep((value) => value + 1))}
             className="h-12 w-full rounded-2xl bg-gradient-primary text-base font-bold shadow-soft md:h-14"
           >
-            {step === steps.length - 1 ? "Explorar im?veis" : step === 0 ? "Come?ar" : "Continuar"}
+            {step === steps.length - 1 ? "Explorar imóveis" : step === 0 ? "Começar" : "Continuar"}
             <ArrowRight className="h-5 w-5" />
           </Button>
         </footer>
@@ -369,7 +351,7 @@ function Intro() {
       <div className="mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-gradient-primary shadow-float">
         <Sparkles className="h-10 w-10 text-primary-foreground" />
       </div>
-      <h1 className="text-4xl font-bold tracking-tight md:text-5xl">E-moveis</h1>
+      <h1 className="text-4xl font-bold tracking-tight md:text-5xl">E-móveis</h1>
       <p className="mt-1 text-xs uppercase tracking-[0.2em] text-primary">active matchmaking</p>
       <h2 className="mt-8 max-w-md text-3xl font-bold leading-tight md:text-4xl">
         Vamos montar seu filtro inicial.
@@ -414,11 +396,13 @@ function ChipGroup({
   selected,
   onToggle,
   columns = "md:grid-cols-3",
+  labels,
   single,
 }: {
   items: string[];
   selected: string[];
   onToggle: (value: string) => void;
+  labels?: Record<string, string>;
   columns?: string;
   single?: boolean;
 }) {
@@ -436,7 +420,7 @@ function ChipGroup({
               single && active && "shadow-soft",
             )}
           >
-            {item}
+            {labels?.[item] ?? item}
           </button>
         );
       })}

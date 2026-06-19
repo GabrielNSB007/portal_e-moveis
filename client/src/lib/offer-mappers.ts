@@ -79,6 +79,13 @@ const defaultNearby: Property["nearby"] = [
 
 const fallbackImages = properties.flatMap((property) => property.images);
 
+function inferListingPurpose(offer: BackendOffer): "SALE" | "RENT" {
+  const price = Number(offer.price);
+  const description = `${offer.title} ${offer.description ?? ""}`.toLowerCase();
+  if (description.includes("aluguel") || description.includes("locacao") || price < 50000) return "RENT";
+  return "SALE";
+}
+
 export function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
@@ -104,11 +111,13 @@ export function mapOfferToProperty(offer: BackendOffer, index = 0): Property {
 
   return {
     id: offer.id,
-    title: offer.title,
+    title: offer.title.replace(/^\[SEED-\d+\]\s*/, ""),
     neighborhood: offer.neighborhood,
     city: offer.city,
     state: offer.state,
     price: Number(offer.price),
+    listingPurpose: inferListingPurpose(offer),
+    ownerId: offer.user?.id,
     type: typeLabels[offer.propertyType] ?? "Apartamento",
     bedrooms: offer.bedrooms,
     bathrooms: offer.bathrooms,
@@ -140,3 +149,7 @@ export function formatDateLabel(value?: string) {
   if (Number.isNaN(date.getTime())) return "hoje";
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(date);
 }
+
+
+
+

@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 import { propertyById, properties, fmtCurrency, isMatched, type Property } from "@/mock/data";
 import api from "@/services/api";
-import { isUuid, mapOfferToProperty, type BackendOffer } from "@/lib/offer-mappers";
+import { isUuid, mapOffersToProperties, mapOfferToProperty, readOffersPayload, type BackendOffer } from "@/lib/offer-mappers";
+import { clearAuthToken, clearSessionEmail } from "@/lib/auth-session";
 import { removeSavedOffer, saveOffer } from "@/services/saved-offers";
 import { registerOfferView, registerOfferVisit } from "@/services/analytics";
 import { MatchBadge } from "@/components/emoveis/MatchBadge";
@@ -44,6 +45,7 @@ function PropertyDetails() {
   const [interested, setInterested] = useState(false);
   const [sendingInterest, setSendingInterest] = useState(false);
   const [savingFavorite, setSavingFavorite] = useState(false);
+  const [similarProperties, setSimilarProperties] = useState<Property[]>([]);
   const p = remoteProperty ?? fallbackProperty;
 
   useEffect(() => {
@@ -77,6 +79,25 @@ function PropertyDetails() {
     };
   }, [id]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    api
+      .get("/offers", { params: { status: "ATIVA", limit: 8 } })
+      .then(({ data }) => {
+        if (!mounted) return;
+        const remoteSimilar = mapOffersToProperties(readOffersPayload(data)).filter((property) => property.id !== id).slice(0, 4);
+        setSimilarProperties(remoteSimilar);
+      })
+      .catch(() => {
+        if (mounted) setSimilarProperties([]);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
   if (loadingProperty) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center p-8 text-center text-muted-foreground">
@@ -97,7 +118,9 @@ function PropertyDetails() {
   }
 
   const matched = isMatched(p.id);
-  const similar = properties.filter((x) => x.id !== p.id).slice(0, 4);
+  const baseImages = p.images.length ? p.images : properties[0].images;
+  const galleryImages = Array.from({ length: 5 }, (_, index) => baseImages[index % baseImages.length]);
+  const similar = similarProperties.length ? similarProperties : properties.filter((x) => x.id !== p.id).slice(0, 4);
 
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -156,6 +179,13 @@ function PropertyDetails() {
       setInterested(true);
       toast.success("Interesse enviado ao anunciante!");
     } catch (error: any) {
+      if (error?.response?.status === 401) {
+        clearAuthToken();
+        clearSessionEmail();
+        toast.error("Sua sessao expirou. Entre novamente para enviar interesse.");
+        navigate({ to: "/auth" });
+        return;
+      }
       const message = error?.response?.data?.error ?? "Nao foi possivel enviar o interesse agora.";
       if (error?.response?.status === 409) {
         setInterested(true);
@@ -252,7 +282,7 @@ function PropertyDetails() {
         {/* GALERIA MOBILE: Slider clássico */}
         <div className="relative lg:hidden">
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-secondary">
-            <img src={p.images[photo]} alt={p.title} className="h-full w-full object-cover" />
+            <img src={galleryImages[photo]} alt={p.title} className="h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent" />
           </div>
 
@@ -280,7 +310,7 @@ function PropertyDetails() {
 
           {/* Indicadores do Slider Mobile */}
           <div className="absolute inset-x-0 bottom-4 flex justify-center gap-1.5">
-            {p.images.map((_, index) => (
+            {galleryImages.map((_, index) => (
               <button
                 key={index}
                 onClick={() => setPhoto(index)}
@@ -295,22 +325,22 @@ function PropertyDetails() {
         {/* GALERIA DESKTOP: Estilo Airbnb */}
         <div className="relative hidden lg:grid lg:h-[420px] lg:grid-cols-[2fr_1fr_1fr] lg:gap-2 xl:h-[500px]">
           <div className="relative h-full w-full overflow-hidden rounded-l-3xl group">
-            <img src={p.images[0]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <img src={galleryImages[0]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
           </div>
           <div className="flex flex-col gap-2">
             <div className="relative h-full w-full overflow-hidden group">
-              <img src={p.images[1]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <img src={galleryImages[1]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
             </div>
             <div className="relative h-full w-full overflow-hidden group">
-              <img src={p.images[2]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <img src={galleryImages[2]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
             </div>
           </div>
           <div className="flex flex-col gap-2">
             <div className="relative h-full w-full overflow-hidden rounded-tr-3xl group">
-              <img src={p.images[3]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <img src={galleryImages[3]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
             </div>
             <div className="relative h-full w-full overflow-hidden rounded-br-3xl group">
-              <img src={p.images[4] || p.images[0]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <img src={galleryImages[4] || galleryImages[0]} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
             </div>
           </div>
           <Button variant="secondary" className="absolute bottom-4 right-4 flex gap-2 font-semibold shadow-lg">

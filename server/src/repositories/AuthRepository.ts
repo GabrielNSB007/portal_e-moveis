@@ -59,6 +59,17 @@ export class AuthRepository {
         })
     }
 
+    async createNotification(userId: string, title: string, description: string, type = "new_compatible") {
+        return await this.prisma.notification.create({
+            data: {
+                userId,
+                type,
+                title,
+                description,
+            }
+        });
+    }
+
     async update(id: string, data: Partial<User>): Promise<SafeUser> {
         const updatedUser = await this.prisma.user.update({
             where: { id },

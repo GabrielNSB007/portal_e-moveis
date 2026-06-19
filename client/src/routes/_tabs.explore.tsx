@@ -21,19 +21,23 @@ import { Logo } from "@/components/emoveis/Logo";
 import { PropertyCard } from "@/components/emoveis/PropertyCard";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { fmtCurrency, properties } from "@/mock/data";
+import { fmtCurrency } from "@/mock/data";
 import api from "@/services/api";
 import { mapOffersToProperties, readOffersPayload } from "@/lib/offer-mappers";
 import { cn } from "@/lib/utils";
-import { citiesForState, DEFAULT_CITY, DEFAULT_STATE, neighborhoodsForCity, STATE_OPTIONS } from "@/lib/location-options";
+import { citiesForState, DEFAULT_CITY, DEFAULT_STATE, stateLabel, STATE_OPTIONS } from "@/lib/location-options";
 
 export const Route = createFileRoute("/_tabs/explore")({
   component: Explore,
 });
 
-const QUICK_FILTERS = ["Para voce", "Pet friendly", "Ate R$ 1M", "2 quartos", "Cobertura"];
+const PURPOSE_FILTERS = [
+  { label: "Comprar", value: "SALE" },
+  { label: "Alugar", value: "RENT" },
+] as const;
 const TYPES = ["Apartamento", "Casa", "Studio", "Cobertura", "Comercial"];
 const AMENITIES = ["Piscina", "Academia", "Pet friendly", "Portaria", "Varanda", "Mobiliado", "Churrasqueira", "Coworking", "Playground", "Area de servico"];
+const LISTING_PURPOSE_KEY = "emoveis-listing-purpose";
 
 
 const normalizeLocation = (value: string) =>
@@ -69,7 +73,6 @@ export type ExploreFilters = {
   budget: number[];
   selectedState: string;
   selectedCity: string;
-  selectedNbhd: string[];
   selectedTypes: string[];
   bedrooms: number;
   bathrooms: number;
@@ -82,7 +85,6 @@ export type ExploreFilterActions = {
   setBudget: (value: number[]) => void;
   setSelectedState: (value: string) => void;
   setSelectedCity: (value: string) => void;
-  setSelectedNbhd: (value: string[]) => void;
   setSelectedTypes: (value: string[]) => void;
   setBedrooms: (value: number) => void;
   setBathrooms: (value: number) => void;
@@ -91,20 +93,24 @@ export type ExploreFilterActions = {
   setSelectedAmenities: (value: string[]) => void;
 };
 
-type AuthProfile = { name: string; email: string };
+type AuthProfile = { id: string; name: string; email: string };
+type ListingPurpose = (typeof PURPOSE_FILTERS)[number]["value"];
 
 function Explore() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [activeChip, setActiveChip] = useState("Para voce");
-  const [availableProperties, setAvailableProperties] = useState(properties);
+  const [listingPurpose, setListingPurpose] = useState<ListingPurpose>(() => {
+    const saved = localStorage.getItem(LISTING_PURPOSE_KEY);
+    return saved === "RENT" ? "RENT" : "SALE";
+  });
+  const [availableProperties, setAvailableProperties] = useState<ReturnType<typeof mapOffersToProperties>>([]);
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [profileName, setProfileName] = useState("voce");
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [filters, setFilters] = useState<ExploreFilters>({
     budget: [0, 5000000],
     selectedState: DEFAULT_STATE,
     selectedCity: DEFAULT_CITY,
-    selectedNbhd: [],
     selectedTypes: [],
     bedrooms: 0,
     bathrooms: 0,
@@ -115,9 +121,8 @@ function Explore() {
 
   const actions: ExploreFilterActions = {
     setBudget: (budget) => setFilters((current) => ({ ...current, budget })),
-    setSelectedState: (selectedState) => setFilters((current) => ({ ...current, selectedState, selectedCity: citiesForState(selectedState)[0] ?? "", selectedNbhd: [] })),
-    setSelectedCity: (selectedCity) => setFilters((current) => ({ ...current, selectedCity, selectedNbhd: [] })),
-    setSelectedNbhd: (selectedNbhd) => setFilters((current) => ({ ...current, selectedNbhd })),
+    setSelectedState: (selectedState) => setFilters((current) => ({ ...current, selectedState, selectedCity: citiesForState(selectedState)[0] ?? "" })),
+    setSelectedCity: (selectedCity) => setFilters((current) => ({ ...current, selectedCity })),
     setSelectedTypes: (selectedTypes) => setFilters((current) => ({ ...current, selectedTypes })),
     setBedrooms: (bedrooms) => setFilters((current) => ({ ...current, bedrooms })),
     setBathrooms: (bathrooms) => setFilters((current) => ({ ...current, bathrooms })),
@@ -135,6 +140,7 @@ function Explore() {
       .then(({ data }) => {
         if (!mounted) return;
         const firstName = data.name?.trim().split(/\s+/)[0];
+        setProfileId(data.id);
         setProfileName(firstName || "voce");
       })
       .catch(() => undefined);
@@ -154,11 +160,13 @@ function Explore() {
         const state = active.state || DEFAULT_STATE;
         const city = active.city || citiesForState(state)[0] || DEFAULT_CITY;
 
+        const inferredPurpose = Number(active.maxPrice ?? 0) > 0 && Number(active.maxPrice) <= 50000 ? "RENT" : localStorage.getItem(LISTING_PURPOSE_KEY);
+        if (inferredPurpose === "RENT" || inferredPurpose === "SALE") setListingPurpose(inferredPurpose);
+
         setFilters((current) => ({
           ...current,
           selectedState: state,
           selectedCity: city,
-          selectedNbhd: active.neighborhoods ?? [],
           selectedTypes: (active.propertyTypes ?? []).map((type) => preferenceTypeLabels[type]).filter(Boolean),
           selectedAmenities: (active.desiredAmenities ?? []).map((amenity) => preferenceAmenityLabels[amenity]).filter(Boolean),
           budget: [Number(active.minPrice ?? current.budget[0]), Number(active.maxPrice ?? current.budget[1])],
@@ -182,14 +190,12 @@ function Explore() {
       try {
         setLoadingOffers(true);
         const { data } = await api.get("/offers", {
-          params: { status: "ATIVA", limit: 60 },
+          params: { status: "ATIVA", limit: 1000 },
         });
         const offers = readOffersPayload(data);
-        if (mounted && offers.length) {
-          setAvailableProperties(mapOffersToProperties(offers));
-        }
+        if (mounted) setAvailableProperties(mapOffersToProperties(offers));
       } catch {
-        if (mounted) setAvailableProperties(properties);
+        if (mounted) setAvailableProperties([]);
       } finally {
         if (mounted) setLoadingOffers(false);
       }
@@ -202,43 +208,23 @@ function Explore() {
     };
   }, []);
 
-  const applyQuickFilter = (value: string) => {
-    setActiveChip(value);
-    if (value === "Pet friendly") actions.setSelectedAmenities(["Pet friendly"]);
-    if (value === "Ate R$ 1M") actions.setBudget([0, 1000000]);
-    if (value === "2 quartos") actions.setBedrooms(2);
-    if (value === "Cobertura") actions.setSelectedTypes(["Cobertura"]);
-    if (value === "Para voce") {
-      setFilters({
-        budget: [0, 5000000],
-        selectedState: DEFAULT_STATE,
-        selectedCity: DEFAULT_CITY,
-        selectedNbhd: [],
-        selectedTypes: [],
-        bedrooms: 0,
-        bathrooms: 0,
-        parking: 0,
-        area: [0, 400],
-        selectedAmenities: [],
-      });
-    }
-  };
 
   const filtered = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = normalizeLocation(query);
 
     return availableProperties.filter((property) => {
+      const isOwnOffer = Boolean(profileId && property.ownerId === profileId);
       const matchesQuery =
         !normalizedQuery ||
         [property.title, property.neighborhood, property.city, property.type]
-          .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+          .some((value) => normalizeLocation(String(value)).includes(normalizedQuery));
       const normalizedPropertyCity = normalizeLocation(property.city);
       const looksLikeSaoPaulo = normalizedPropertyCity === "sao paulo" || property.city.toLowerCase().includes("paulo");
       const propertyState = property.state ?? (looksLikeSaoPaulo ? "SP" : "");
       const matchesState = !filters.selectedState || propertyState === filters.selectedState;
       const matchesCity = !filters.selectedCity || normalizedPropertyCity === normalizeLocation(filters.selectedCity) || (looksLikeSaoPaulo && normalizeLocation(filters.selectedCity) === "sao paulo");
+      const matchesPurpose = property.listingPurpose === listingPurpose;
       const matchesBudget = property.price >= filters.budget[0] && property.price <= filters.budget[1];
-      const matchesNbhd = !filters.selectedNbhd.length || filters.selectedNbhd.some((neighborhood) => normalizeLocation(neighborhood) === normalizeLocation(property.neighborhood));
       const matchesType = !filters.selectedTypes.length || filters.selectedTypes.includes(property.type);
       const matchesBedrooms = !filters.bedrooms || property.bedrooms >= filters.bedrooms;
       const matchesBathrooms = !filters.bathrooms || property.bathrooms >= filters.bathrooms;
@@ -251,11 +237,12 @@ function Explore() {
         );
 
       return (
+        !isOwnOffer &&
         matchesQuery &&
+        matchesPurpose &&
         matchesState &&
         matchesCity &&
         matchesBudget &&
-        matchesNbhd &&
         matchesType &&
         matchesBedrooms &&
         matchesBathrooms &&
@@ -264,7 +251,7 @@ function Explore() {
         matchesAmenities
       );
     });
-  }, [availableProperties, query, filters]);
+  }, [availableProperties, query, filters, listingPurpose, profileId]);
 
   const top = filtered[0];
   const rest = filtered.slice(1);
@@ -295,7 +282,7 @@ function Explore() {
         </div>
 
         <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground lg:hidden">
-          <MapPin className="h-3 w-3" /> Sao Paulo · regiao central
+          <MapPin className="h-3 w-3" /> {filters.selectedCity} · {stateLabel(filters.selectedState)}
         </div>
 
         <div className="mt-3 flex gap-2 lg:mt-0 lg:hidden">
@@ -310,9 +297,7 @@ function Explore() {
         </div>
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 no-scrollbar lg:hidden">
-          {QUICK_FILTERS.map((filter) => (
-            <QuickChip key={filter} value={filter} active={activeChip === filter} onClick={() => applyQuickFilter(filter)} />
-          ))}
+          <PurposeToggle value={listingPurpose} onChange={setListingPurpose} />
         </div>
       </header>
 
@@ -322,9 +307,7 @@ function Explore() {
             <div className="shrink-0 border-b border-border/70 p-4">
               <SearchBox query={query} setQuery={setQuery} />
               <div className="mt-4 flex flex-wrap gap-2">
-                {QUICK_FILTERS.map((filter) => (
-                  <QuickChip key={filter} value={filter} active={activeChip === filter} onClick={() => applyQuickFilter(filter)} />
-                ))}
+                <PurposeToggle value={listingPurpose} onChange={setListingPurpose} />
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-4 no-scrollbar">
@@ -401,18 +384,30 @@ function SearchBox({ query, setQuery }: { query: string; setQuery: (value: strin
   );
 }
 
-function QuickChip({ value, active, onClick }: { value: string; active: boolean; onClick: () => void }) {
+function PurposeToggle({ value, onChange }: { value: ListingPurpose; onChange: (value: ListingPurpose) => void }) {
+  const update = (next: ListingPurpose) => {
+    localStorage.setItem(LISTING_PURPOSE_KEY, next);
+    onChange(next);
+  };
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition active:scale-95",
-        active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground",
-      )}
-    >
-      {value}
-    </button>
+    <div className="grid w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-card p-1 shadow-sm">
+      {PURPOSE_FILTERS.map((item) => {
+        const active = value === item.value;
+        return (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => update(item.value)}
+            className={cn(
+              "rounded-xl px-3 py-2 text-xs font-bold transition active:scale-95",
+              active ? "bg-primary text-primary-foreground shadow-soft" : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+            )}
+          >
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -430,7 +425,7 @@ function FilterSidebar({ filters, actions }: { filters: ExploreFilters; actions:
             <div>
               <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Estado</div>
               <SingleChipSelector
-                items={STATE_OPTIONS.map((state) => ({ label: state.value, value: state.value }))}
+                items={STATE_OPTIONS.map((state) => ({ label: state.label, value: state.value }))}
                 selected={filters.selectedState}
                 onSelect={actions.setSelectedState}
               />
@@ -443,12 +438,6 @@ function FilterSidebar({ filters, actions }: { filters: ExploreFilters; actions:
                 onSelect={actions.setSelectedCity}
               />
             </div>
-            {neighborhoodsForCity(filters.selectedCity).length > 0 && (
-              <div>
-                <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Bairros</div>
-                <ChipSelector items={neighborhoodsForCity(filters.selectedCity)} selected={filters.selectedNbhd} onToggle={(next) => actions.setSelectedNbhd(next)} />
-              </div>
-            )}
           </div>
         </FilterSection>
 
@@ -604,3 +593,6 @@ function Stepper({ label, value, setValue, icon: Icon }: { label: string; value:
     </div>
   );
 }
+
+
+

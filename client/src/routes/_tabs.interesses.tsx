@@ -58,6 +58,8 @@ function Interesses() {
   const [sentProposals, setSentProposals] = useState<UiProposal[]>([]);
   const [receivedProposals, setReceivedProposals] = useState<UiProposal[]>([]);
   const [realMatches, setRealMatches] = useState<UiMatch[]>([]);
+  const [proposalsFallback, setProposalsFallback] = useState(false);
+  const [matchesFallback, setMatchesFallback] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -70,6 +72,7 @@ function Interesses() {
         ]);
 
         if (!mounted) return;
+        setProposalsFallback(false);
 
         setSentProposals(
           (sentResponse.data ?? [])
@@ -89,6 +92,7 @@ function Interesses() {
         );
       } catch {
         if (!mounted) return;
+        setProposalsFallback(true);
         setSentProposals([]);
         setReceivedProposals([]);
       }
@@ -107,6 +111,7 @@ function Interesses() {
     listMatches()
       .then(({ data }) => {
         if (!mounted) return;
+        setMatchesFallback(false);
         setRealMatches(
           (data.items ?? [])
             .filter((match) => match.offer)
@@ -117,7 +122,10 @@ function Interesses() {
         );
       })
       .catch(() => {
-        if (mounted) setRealMatches([]);
+        if (mounted) {
+          setMatchesFallback(true);
+          setRealMatches([]);
+        }
       });
 
     return () => {
@@ -126,9 +134,9 @@ function Interesses() {
   }, []);
 
   const counts = {
-    sent: sentProposals.length || sentInterests.length,
-    received: receivedProposals.length || receivedInterests.length,
-    matches: realMatches.length || matches.length,
+    sent: sentProposals.length || (proposalsFallback ? sentInterests.length : 0),
+    received: receivedProposals.length || (proposalsFallback ? receivedInterests.length : 0),
+    matches: realMatches.length || (matchesFallback ? matches.length : 0),
   };
 
   return (
@@ -169,15 +177,15 @@ function Interesses() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {tab === "sent" && <SentList proposals={sentProposals} />}
-              {tab === "received" && <ReceivedList proposals={receivedProposals} />}
-              {tab === "matches" && <MatchesList items={realMatches} />}
+              {tab === "sent" && <SentList proposals={sentProposals} useFallback={proposalsFallback} />}
+              {tab === "received" && <ReceivedList proposals={receivedProposals} useFallback={proposalsFallback} />}
+              {tab === "matches" && <MatchesList items={realMatches} useFallback={matchesFallback} />}
             </motion.div>
           </AnimatePresence>
         </div>
         
         {/* SIDEBAR DESKTOP */}
-        <InterestDetailPanel tab={tab} counts={counts} sentProposals={sentProposals} realMatches={realMatches} />
+        <InterestDetailPanel tab={tab} counts={counts} sentProposals={sentProposals} realMatches={realMatches} useFallback={proposalsFallback || matchesFallback} />
       </div>
     </div>
   );
@@ -220,14 +228,18 @@ function InterestDetailPanel({
   counts,
   sentProposals,
   realMatches,
+  useFallback,
 }: {
   tab: Tab;
   counts: { sent: number; received: number; matches: number };
   sentProposals: UiProposal[];
   realMatches: UiMatch[];
+  useFallback: boolean;
 }) {
   const featured =
-    tab === "matches" ? realMatches[0]?.property ?? propertyById(matches[0]?.propertyId) : sentProposals[0]?.property ?? propertyById(sentInterests[0]?.propertyId);
+    tab === "matches"
+      ? realMatches[0]?.property ?? (useFallback ? propertyById(matches[0]?.propertyId) : undefined)
+      : sentProposals[0]?.property ?? (useFallback ? propertyById(sentInterests[0]?.propertyId) : undefined);
 
   return (
     <aside className="sticky top-8 hidden h-fit space-y-6 lg:block">
@@ -288,7 +300,7 @@ function proposalStatusToInterestStatus(status: string): InterestStatus {
   return "Aguardando resposta";
 }
 
-function SentList({ proposals }: { proposals: UiProposal[] }) {
+function SentList({ proposals, useFallback }: { proposals: UiProposal[]; useFallback: boolean }) {
   if (proposals.length) {
     return (
       <div className="space-y-4 lg:space-y-5">
@@ -355,7 +367,15 @@ function SentList({ proposals }: { proposals: UiProposal[] }) {
     );
   }
 
-  return <MockSentList />;
+  return useFallback ? <MockSentList /> : (
+    <div className="mt-8 lg:mt-16">
+      <EmptyState
+        icon={Send}
+        title="Nenhum interesse enviado"
+        description="Explore os imoveis compativeis com seu perfil e demonstre interesse quando encontrar o lar ideal."
+      />
+    </div>
+  );
 }
 
 function MockSentList() {
@@ -452,7 +472,7 @@ async function updateProposalStatus(id: string, status: "ACEITA" | "RECUSADA" | 
   await api.patch(`/proposals/${id}/status`, { status });
 }
 
-function ReceivedList({ proposals }: { proposals: UiProposal[] }) {
+function ReceivedList({ proposals, useFallback }: { proposals: UiProposal[]; useFallback: boolean }) {
   if (proposals.length) {
     return (
       <div className="space-y-4 lg:space-y-5">
@@ -521,7 +541,7 @@ function ReceivedList({ proposals }: { proposals: UiProposal[] }) {
     );
   }
 
-  if (!receivedInterests.length) {
+  if (!useFallback || !receivedInterests.length) {
     return (
       <div className="mt-8 lg:mt-16">
         <EmptyState
@@ -580,7 +600,7 @@ function ReceivedList({ proposals }: { proposals: UiProposal[] }) {
   );
 }
 
-function MatchesList({ items }: { items: UiMatch[] }) {
+function MatchesList({ items, useFallback }: { items: UiMatch[]; useFallback: boolean }) {
   if (items.length) {
     return (
       <div className="space-y-5 lg:space-y-6">
@@ -637,7 +657,7 @@ function MatchesList({ items }: { items: UiMatch[] }) {
     );
   }
 
-  if (!matches.length) {
+  if (!useFallback || !matches.length) {
     return (
       <div className="mt-8 lg:mt-16">
         <EmptyState
