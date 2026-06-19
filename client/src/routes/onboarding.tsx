@@ -148,6 +148,7 @@ function Onboarding() {
         desiredAmenities: Array.from(new Set(amenities.map(amenityToBackend).filter(Boolean))),
         isActive: true,
       });
+      localStorage.setItem("emoveis-listing-purpose", objective === "Alugar" ? "RENT" : "SALE");
       markOnboardingComplete(getSessionEmail());
       toast.success("Preferências salvas com sucesso!");
       setTimeout(() => navigate({ to: "/explore" }), 900);

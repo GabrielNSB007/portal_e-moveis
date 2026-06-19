@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -37,6 +37,7 @@ const PURPOSE_FILTERS = [
 ] as const;
 const TYPES = ["Apartamento", "Casa", "Studio", "Cobertura", "Comercial"];
 const AMENITIES = ["Piscina", "Academia", "Pet friendly", "Portaria", "Varanda", "Mobiliado", "Churrasqueira", "Coworking", "Playground", "Area de servico"];
+const LISTING_PURPOSE_KEY = "emoveis-listing-purpose";
 
 
 const normalizeLocation = (value: string) =>
@@ -92,16 +93,20 @@ export type ExploreFilterActions = {
   setSelectedAmenities: (value: string[]) => void;
 };
 
-type AuthProfile = { name: string; email: string };
+type AuthProfile = { id: string; name: string; email: string };
 type ListingPurpose = (typeof PURPOSE_FILTERS)[number]["value"];
 
 function Explore() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [listingPurpose, setListingPurpose] = useState<ListingPurpose>("SALE");
+  const [listingPurpose, setListingPurpose] = useState<ListingPurpose>(() => {
+    const saved = localStorage.getItem(LISTING_PURPOSE_KEY);
+    return saved === "RENT" ? "RENT" : "SALE";
+  });
   const [availableProperties, setAvailableProperties] = useState<ReturnType<typeof mapOffersToProperties>>([]);
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [profileName, setProfileName] = useState("voce");
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [filters, setFilters] = useState<ExploreFilters>({
     budget: [0, 5000000],
     selectedState: DEFAULT_STATE,
@@ -135,6 +140,7 @@ function Explore() {
       .then(({ data }) => {
         if (!mounted) return;
         const firstName = data.name?.trim().split(/\s+/)[0];
+        setProfileId(data.id);
         setProfileName(firstName || "voce");
       })
       .catch(() => undefined);
@@ -153,6 +159,9 @@ function Explore() {
         const active = preferences.find((preference) => preference.isActive) ?? preferences[0];
         const state = active.state || DEFAULT_STATE;
         const city = active.city || citiesForState(state)[0] || DEFAULT_CITY;
+
+        const inferredPurpose = Number(active.maxPrice ?? 0) > 0 && Number(active.maxPrice) <= 50000 ? "RENT" : localStorage.getItem(LISTING_PURPOSE_KEY);
+        if (inferredPurpose === "RENT" || inferredPurpose === "SALE") setListingPurpose(inferredPurpose);
 
         setFilters((current) => ({
           ...current,
@@ -204,6 +213,7 @@ function Explore() {
     const normalizedQuery = normalizeLocation(query);
 
     return availableProperties.filter((property) => {
+      const isOwnOffer = Boolean(profileId && property.ownerId === profileId);
       const matchesQuery =
         !normalizedQuery ||
         [property.title, property.neighborhood, property.city, property.type]
@@ -227,6 +237,7 @@ function Explore() {
         );
 
       return (
+        !isOwnOffer &&
         matchesQuery &&
         matchesPurpose &&
         matchesState &&
@@ -240,7 +251,7 @@ function Explore() {
         matchesAmenities
       );
     });
-  }, [availableProperties, query, filters, listingPurpose]);
+  }, [availableProperties, query, filters, listingPurpose, profileId]);
 
   const top = filtered[0];
   const rest = filtered.slice(1);
@@ -374,6 +385,10 @@ function SearchBox({ query, setQuery }: { query: string; setQuery: (value: strin
 }
 
 function PurposeToggle({ value, onChange }: { value: ListingPurpose; onChange: (value: ListingPurpose) => void }) {
+  const update = (next: ListingPurpose) => {
+    localStorage.setItem(LISTING_PURPOSE_KEY, next);
+    onChange(next);
+  };
   return (
     <div className="grid w-full grid-cols-2 gap-1 rounded-2xl border border-border bg-card p-1 shadow-sm">
       {PURPOSE_FILTERS.map((item) => {
@@ -382,7 +397,7 @@ function PurposeToggle({ value, onChange }: { value: ListingPurpose; onChange: (
           <button
             key={item.value}
             type="button"
-            onClick={() => onChange(item.value)}
+            onClick={() => update(item.value)}
             className={cn(
               "rounded-xl px-3 py-2 text-xs font-bold transition active:scale-95",
               active ? "bg-primary text-primary-foreground shadow-soft" : "text-muted-foreground hover:bg-secondary hover:text-foreground",

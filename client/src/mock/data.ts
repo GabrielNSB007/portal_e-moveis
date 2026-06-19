@@ -1,4 +1,4 @@
-﻿// Temporary UI fallback only.
+// Temporary UI fallback only.
 // Real app data should come from the backend; keep this file for offline/error states while integration is completed.
 export type Property = {
   id: string;
@@ -21,6 +21,7 @@ export type Property = {
   petFriendly: boolean;
   contact: { agent: string; phone: string; whatsapp: string; email: string };
   listingPurpose?: "SALE" | "RENT";
+  ownerId?: string;
 };
 
 const img = (id: string) =>

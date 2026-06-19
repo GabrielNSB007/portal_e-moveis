@@ -1,4 +1,4 @@
-﻿import { properties, type Property } from "@/mock/data";
+import { properties, type Property } from "@/mock/data";
 
 export type BackendOfferMedia = {
   id?: string;
@@ -117,6 +117,7 @@ export function mapOfferToProperty(offer: BackendOffer, index = 0): Property {
     state: offer.state,
     price: Number(offer.price),
     listingPurpose: inferListingPurpose(offer),
+    ownerId: offer.user?.id,
     type: typeLabels[offer.propertyType] ?? "Apartamento",
     bedrooms: offer.bedrooms,
     bathrooms: offer.bathrooms,

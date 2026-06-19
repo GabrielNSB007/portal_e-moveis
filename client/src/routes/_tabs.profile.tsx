@@ -129,6 +129,7 @@ function Profile() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isActivatingSeller, setIsActivatingSeller] = useState(false);
+  const [sellerRequestSent, setSellerRequestSent] = useState(() => localStorage.getItem("emoveis-seller-request") === "review");
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>({ name: "", email: "", phone: "", password: "", currentPassword: "" });
   const [savedProperties, setSavedProperties] = useState<Property[]>([]);
   const [savedFallback, setSavedFallback] = useState(false);
@@ -309,17 +310,13 @@ function Profile() {
 
     setIsActivatingSeller(true);
     try {
-      const { data } = await api.put<AuthProfile>("/auth/profile", { userRole: "VENDEDOR" });
-      setProfile(data);
-      toast.success("Área do anunciante ativada.");
-      navigate({ to: "/agent" });
-    } catch (error: any) {
-      toast.error(error?.response?.data?.error ?? "Não foi possível ativar a área do anunciante.");
+      localStorage.setItem("emoveis-seller-request", "review");
+      setSellerRequestSent(true);
+      toast.success("Solicitação enviada para análise. Vamos validar seus dados antes de liberar anúncios.");
     } finally {
       setIsActivatingSeller(false);
     }
   };
-
   const stats = [
     { icon: Send, label: "Interesses", value: profileStats.interests },
     { icon: Sparkles, label: "Matches", value: profileStats.matches },
@@ -531,6 +528,7 @@ function Profile() {
           <SellerAccessCard
             isSeller={isSeller}
             isLoading={isActivatingSeller}
+            requestSent={sellerRequestSent}
             onActivate={activateSellerPanel}
           />
 
@@ -680,14 +678,16 @@ function ProfileTask({
 function SellerAccessCard({
   isSeller,
   isLoading,
+  requestSent,
   onActivate,
 }: {
   isSeller: boolean;
   isLoading: boolean;
+  requestSent: boolean;
   onActivate: () => void;
 }) {
   return (
-    <Section title="Área do anunciante" subtitle={isSeller ? "Painel liberado para anúncios" : "Ative quando quiser anunciar"}>
+    <Section title="Área do anunciante" subtitle={isSeller ? "Painel liberado para anúncios" : requestSent ? "Solicitação em análise" : "Solicite acesso para anunciar"}>
       <div className="rounded-3xl border border-primary/25 bg-primary/5 p-4 shadow-sm">
         <div className="flex items-start gap-3">
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-soft">
@@ -695,22 +695,24 @@ function SellerAccessCard({
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-bold text-foreground">
-              {isSeller ? "Seu painel está ativo" : "Virar anunciante"}
+              {isSeller ? "Seu painel está ativo" : requestSent ? "Análise em andamento" : "Solicitar área do anunciante"}
             </h3>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               {isSeller
                 ? "Gerencie seus imóveis sem misturar com sua busca de comprador."
-                : "Libera o painel de anúncios mantendo este perfil de comprador separado."}
+                : requestSent
+                  ? "Recebemos sua solicitação. A liberação deve acontecer após validação de dados e documentos."
+                  : "Antes de anunciar, vamos validar seus dados e documentos para proteger compradores e proprietários."}
             </p>
           </div>
         </div>
         <Button
           type="button"
           onClick={onActivate}
-          disabled={isLoading}
+          disabled={isLoading || (!isSeller && requestSent)}
           className="mt-4 h-11 w-full rounded-2xl bg-gradient-primary font-bold"
         >
-          {isLoading ? "Aguarde..." : isSeller ? "Abrir painel" : "Ativar painel"}
+          {isLoading ? "Aguarde..." : isSeller ? "Abrir painel" : requestSent ? "Em análise" : "Solicitar análise"}
         </Button>
       </div>
     </Section>

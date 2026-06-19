@@ -1,4 +1,4 @@
-﻿
+
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -22,7 +22,7 @@ import { fmtCurrency } from "@/mock/data";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import api from "@/services/api";
-import { listMatches } from "@/services/matches";
+import { listMatches, type BackendMatch } from "@/services/matches";
 import type { BackendProposal } from "@/lib/offer-mappers";
 import { getSellerAnalyticsSummary, type SellerAnalyticsSummary } from "@/services/analytics";
 
@@ -126,13 +126,16 @@ function AgentDashboard() {
   const [profile, setProfile] = useState<AuthProfile | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [receivedProposals, setReceivedProposals] = useState<BackendProposal[]>([]);
+  const [compatibleMatches, setCompatibleMatches] = useState<BackendMatch[]>([]);
   const [matchCount, setMatchCount] = useState(0);
   const [analytics, setAnalytics] = useState<SellerAnalyticsSummary>({ totalViews: 0, totalVisits: 0, byOffer: {} });
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [form, setForm] = useState<OfferForm>(defaultForm);
   const [isSaving, setIsSaving] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
+  const [sellerRequestSent, setSellerRequestSent] = useState(() => localStorage.getItem("emoveis-seller-request") === "review");
 
   const isSeller = profile?.role === "VENDEDOR";
 
@@ -146,10 +149,17 @@ function AgentDashboard() {
         listMatches(),
         getSellerAnalyticsSummary(),
       ]);
+      const ownedOffers = offersData.items ?? [];
+      const ownedOfferIds = new Set(ownedOffers.map((offer) => offer.id));
+      const sellerMatches = dedupeMatchesByOfferAndUser(
+        (matchesResponse.data.items ?? []).filter((match) => ownedOfferIds.has(match.offerId)),
+      );
+
       setProfile(profileData);
-      setOffers(offersData.items ?? []);
+      setOffers(ownedOffers);
       setReceivedProposals(proposalsData ?? []);
-      setMatchCount(matchesResponse.data.pagination?.total ?? matchesResponse.data.items?.length ?? 0);
+      setCompatibleMatches(sellerMatches);
+      setMatchCount(sellerMatches.length);
       setAnalytics(analyticsData);
     } catch (error: any) {
       toast.error(error?.response?.data?.error ?? "Não foi possível carregar o painel do anunciante.");
@@ -188,16 +198,13 @@ function AgentDashboard() {
   const activateSeller = async () => {
     setIsActivating(true);
     try {
-      const { data } = await api.put<AuthProfile>("/auth/profile", { userRole: "VENDEDOR" });
-      setProfile(data);
-      toast.success("Área do anunciante ativada.");
-    } catch (error: any) {
-      toast.error(error?.response?.data?.error ?? "Não foi possível ativar a área do anunciante.");
+      localStorage.setItem("emoveis-seller-request", "review");
+      setSellerRequestSent(true);
+      toast.success("Solicitação enviada para análise. Vamos validar seus dados antes de liberar anúncios.");
     } finally {
       setIsActivating(false);
     }
   };
-
   const openCreateForm = () => {
     if (!isSeller) {
       toast.info("Ative a área do anunciante antes de cadastrar imóveis.");
@@ -248,7 +255,7 @@ function AgentDashboard() {
       </header>
 
       <div className="space-y-6 p-5 lg:space-y-8 lg:p-0">
-        <ActivationCard isSeller={isSeller} isLoading={isActivating} onActivate={activateSeller} />
+        <ActivationCard isSeller={isSeller} requestSent={sellerRequestSent} isLoading={isActivating} onActivate={activateSeller} />
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5">
           {stats.map((stat) => (
@@ -272,8 +279,18 @@ function AgentDashboard() {
           </div>
         </div>
 
-        <ListingsSection offers={offers} activeCount={metrics.active} isLoading={isLoading} proposalCountByOffer={proposalCountByOffer} analyticsByOffer={analytics.byOffer} onCreate={openCreateForm} />
+        <CompatibleProfilesSection matches={compatibleMatches} offers={offers} onOpenOffer={setSelectedOffer} />
+        <ListingsSection offers={offers} activeCount={metrics.active} isLoading={isLoading} proposalCountByOffer={proposalCountByOffer} analyticsByOffer={analytics.byOffer} onCreate={openCreateForm} onOpenOffer={setSelectedOffer} />
       </div>
+
+      <SellerOfferDetailModal
+        offer={selectedOffer}
+        matches={compatibleMatches.filter((match) => match.offerId === selectedOffer?.id)}
+        proposals={receivedProposals.filter((proposal) => proposal.offerId === selectedOffer?.id)}
+        views={selectedOffer ? analytics.byOffer[selectedOffer.id]?.views ?? 0 : 0}
+        visits={selectedOffer ? analytics.byOffer[selectedOffer.id]?.visits ?? 0 : 0}
+        onClose={() => setSelectedOffer(null)}
+      />
 
       <OfferModal
         open={isFormOpen}
@@ -287,11 +304,11 @@ function AgentDashboard() {
   );
 }
 
-function ActivationCard({ isSeller, isLoading, onActivate }: { isSeller: boolean; isLoading: boolean; onActivate: () => void }) {
+function ActivationCard({ isSeller, requestSent, isLoading, onActivate }: { isSeller: boolean; requestSent: boolean; isLoading: boolean; onActivate: () => void }) {
   const steps = [
     { label: "Perfil", done: true },
     { label: "Contato", done: true },
-    { label: "Anunciante", done: isSeller },
+    { label: requestSent && !isSeller ? "Análise" : "Anunciante", done: isSeller || requestSent },
   ];
 
   return (
@@ -306,7 +323,7 @@ function ActivationCard({ isSeller, isLoading, onActivate }: { isSeller: boolean
             <BadgeCheck className="h-4 w-4" />
           </div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground lg:text-sm">
-            {isSeller ? "Sua área de anúncios está ativa. Os imóveis criados aqui já ficam vinculados ao seu usuário." : "Ative a área do anunciante para cadastrar imóveis sem misturar com sua busca de comprador."}
+            {isSeller ? "Sua área de anúncios está ativa. Os imóveis criados aqui já ficam vinculados ao seu usuário." : requestSent ? "Sua solicitação está em análise. A publicação de anúncios será liberada após validação." : "Solicite a área do anunciante para cadastrar imóveis sem misturar com sua busca de comprador."}
           </p>
           <div className="mt-4 grid grid-cols-3 gap-2">
             {steps.map((step) => (
@@ -319,8 +336,8 @@ function ActivationCard({ isSeller, isLoading, onActivate }: { isSeller: boolean
         </div>
       </div>
       {!isSeller && (
-        <Button variant="outline" className="mt-4 h-11 w-full rounded-2xl bg-card font-bold" onClick={onActivate} disabled={isLoading}>
-          {isLoading ? "Ativando..." : "Ativar cadastro de anunciante"}
+        <Button variant="outline" className="mt-4 h-11 w-full rounded-2xl bg-card font-bold" onClick={onActivate} disabled={isLoading || requestSent}>
+          {isLoading ? "Enviando..." : requestSent ? "Em análise" : "Solicitar análise de anunciante"}
           <ChevronRight className="h-4 w-4" />
         </Button>
       )}
@@ -382,7 +399,58 @@ function QuickRegisterCard({ onClick, disabled }: { onClick: () => void; disable
     </button>
   );
 }
-function ListingsSection({ offers, activeCount, isLoading, proposalCountByOffer, analyticsByOffer, onCreate }: { offers: Offer[]; activeCount: number; isLoading: boolean; proposalCountByOffer: Record<string, number>; analyticsByOffer: SellerAnalyticsSummary["byOffer"]; onCreate: () => void }) {
+function CompatibleProfilesSection({ matches, offers, onOpenOffer }: { matches: BackendMatch[]; offers: Offer[]; onOpenOffer: (offer: Offer) => void }) {
+  const byOffer = new Map(offers.map((offer) => [offer.id, offer]));
+  const topMatches = matches.slice(0, 6);
+
+  return (
+    <section className="rounded-[1.5rem] border border-border/50 bg-card p-5 shadow-sm lg:rounded-[2rem] lg:p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-base font-bold lg:text-xl">Perfis compatíveis</h3>
+          <p className="mt-1 text-xs text-muted-foreground lg:text-sm">
+            Compradores com preferências próximas dos seus anúncios.
+          </p>
+        </div>
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{matches.length} perfis</span>
+      </div>
+
+      {topMatches.length === 0 ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-border bg-background p-5 text-sm text-muted-foreground">
+          Gere matches a partir dos seus anúncios para visualizar compradores aderentes ao perfil do imóvel.
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+          {topMatches.map((match) => {
+            const offer = byOffer.get(match.offerId);
+            const buyer = match.preference?.user;
+            return (
+              <button
+                key={match.id}
+                type="button"
+                onClick={() => offer && onOpenOffer(offer)}
+                className="rounded-2xl border border-border bg-background p-4 text-left transition-colors hover:border-primary/50 hover:bg-primary/5"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-bold">{buyer?.name ?? "Comprador compatível"}</div>
+                    <div className="mt-0.5 truncate text-xs text-muted-foreground">{offer?.title ?? match.offer.title}</div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground">{Math.round(match.score)}%</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-muted-foreground">
+                  <span className="rounded-full bg-secondary px-2 py-1">{match.status}</span>
+                  <span className="rounded-full bg-secondary px-2 py-1">{match.offer.city}/{match.offer.state}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+function ListingsSection({ offers, activeCount, isLoading, proposalCountByOffer, analyticsByOffer, onCreate, onOpenOffer }: { offers: Offer[]; activeCount: number; isLoading: boolean; proposalCountByOffer: Record<string, number>; analyticsByOffer: SellerAnalyticsSummary["byOffer"]; onCreate: () => void; onOpenOffer: (offer: Offer) => void }) {
   return (
     <section className="pt-2 lg:pt-6">
       <div className="mb-4 flex items-center justify-between px-1 lg:mb-6 lg:px-2">
@@ -403,16 +471,16 @@ function ListingsSection({ offers, activeCount, isLoading, proposalCountByOffer,
       )}
       <div className="grid gap-3 lg:grid-cols-2 lg:gap-5">
         {offers.map((offer, index) => (
-          <OfferCard key={offer.id} offer={offer} image={offer.media?.[0]?.url || fallbackImages[index % fallbackImages.length]} interests={proposalCountByOffer[offer.id] ?? 0} views={analyticsByOffer[offer.id]?.views ?? 0} />
+          <OfferCard key={offer.id} offer={offer} image={offer.media?.[0]?.url || fallbackImages[index % fallbackImages.length]} interests={proposalCountByOffer[offer.id] ?? 0} views={analyticsByOffer[offer.id]?.views ?? 0} onOpen={() => onOpenOffer(offer)} />
         ))}
       </div>
     </section>
   );
 }
 
-function OfferCard({ offer, image, interests, views }: { offer: Offer; image: string; interests: number; views: number }) {
+function OfferCard({ offer, image, interests, views, onOpen }: { offer: Offer; image: string; interests: number; views: number; onOpen: () => void }) {
   return (
-    <div className="group flex items-center gap-4 rounded-[1.5rem] border border-border/50 bg-card p-3 shadow-sm transition-all hover:border-border hover:shadow-md lg:p-4">
+    <button type="button" onClick={onOpen} className="group flex w-full items-center gap-4 rounded-[1.5rem] border border-border/50 bg-card p-3 text-left shadow-sm transition-all hover:border-border hover:shadow-md lg:p-4">
       <div className="relative shrink-0 overflow-hidden rounded-xl lg:h-24 lg:w-24 lg:rounded-2xl">
         <img src={image} alt="" className="h-16 w-16 object-cover transition-transform duration-500 group-hover:scale-110 lg:h-full lg:w-full" />
       </div>
@@ -434,7 +502,7 @@ function OfferCard({ offer, image, interests, views }: { offer: Offer; image: st
           </span>
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -449,6 +517,85 @@ function StatusPill({ status }: { status: OfferStatus }) {
   );
 }
 
+function SellerOfferDetailModal({ offer, matches, proposals, views, visits, onClose }: { offer: Offer | null; matches: BackendMatch[]; proposals: BackendProposal[]; views: number; visits: number; onClose: () => void }) {
+  if (!offer) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/45 p-4 backdrop-blur-sm">
+      <div className="mx-auto my-6 w-full max-w-4xl rounded-3xl border border-border bg-card p-5 shadow-card lg:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Gestão do anúncio</div>
+            <h3 className="mt-1 text-xl font-bold lg:text-2xl">{offer.title}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{offer.neighborhood} · {offer.city}/{offer.state}</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full bg-secondary text-sm font-bold">x</button>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="overflow-hidden rounded-2xl border border-border bg-background">
+            <img src={offer.media?.[0]?.url || fallbackImages[0]} alt="" className="h-48 w-full object-cover" />
+            <div className="space-y-2 p-4">
+              <div className="text-2xl font-bold">{fmtCurrency(Number(offer.price))}</div>
+              <div className="flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
+                <span className="rounded-full bg-secondary px-2 py-1">{offer.bedrooms} quartos</span>
+                <span className="rounded-full bg-secondary px-2 py-1">{offer.bathrooms} banheiros</span>
+                <span className="rounded-full bg-secondary px-2 py-1">{offer.areaM2}m2</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            <div className="grid grid-cols-3 gap-3">
+              <MetricMini label="Visualizações" value={views} />
+              <MetricMini label="Visitas" value={visits} />
+              <MetricMini label="Perfis" value={matches.length} />
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background p-4">
+              <h4 className="text-sm font-bold">Compradores compatíveis</h4>
+              <div className="mt-3 space-y-2">
+                {matches.length ? matches.map((match) => (
+                  <div key={match.id} className="flex items-center justify-between gap-3 rounded-xl bg-card px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-bold">{match.preference?.user?.name ?? "Comprador"}</div>
+                      <div className="text-xs text-muted-foreground">{match.status}</div>
+                    </div>
+                    <span className="rounded-full bg-primary px-2 py-1 text-xs font-bold text-primary-foreground">{Math.round(match.score)}%</span>
+                  </div>
+                )) : <p className="text-sm text-muted-foreground">Nenhum perfil compatível gerado para este anúncio ainda.</p>}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background p-4">
+              <h4 className="text-sm font-bold">Propostas recebidas</h4>
+              <div className="mt-3 space-y-2">
+                {proposals.length ? proposals.map((proposal) => (
+                  <div key={proposal.id} className="rounded-xl bg-card px-3 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="truncate text-sm font-bold">{proposal.buyer?.name ?? "Comprador"}</span>
+                      <span className="rounded-full bg-secondary px-2 py-1 text-[11px] font-bold text-muted-foreground">{proposal.status}</span>
+                    </div>
+                    {proposal.message && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{proposal.message}</p>}
+                  </div>
+                )) : <p className="text-sm text-muted-foreground">Nenhuma proposta recebida para este anúncio.</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetricMini({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-border bg-background p-3">
+      <div className="text-xl font-bold">{value}</div>
+      <div className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
+    </div>
+  );
+}
 function OfferModal({ open, form, isSaving, onChange, onClose, onSave }: { open: boolean; form: OfferForm; isSaving: boolean; onChange: (patch: Partial<OfferForm>) => void; onClose: () => void; onSave: () => void }) {
   if (!open) return null;
   const toggleAmenity = (amenity: Amenity) => {
@@ -522,4 +669,17 @@ function onlyDigits(value: string) {
 function compactNumber(value: number) {
   if (value >= 1000) return `${(value / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}k`;
   return value.toString();
+}
+
+function dedupeMatchesByOfferAndUser(matches: BackendMatch[]) {
+  const map = new Map<string, BackendMatch>();
+
+  for (const match of matches) {
+    const buyerId = match.preference?.user?.id ?? match.preference?.userId ?? match.preferenceId;
+    const key = `${match.offerId}:${buyerId}`;
+    const current = map.get(key);
+    if (!current || match.score > current.score) map.set(key, match);
+  }
+
+  return Array.from(map.values()).sort((left, right) => right.score - left.score);
 }

@@ -1,4 +1,4 @@
-﻿import "dotenv/config";
+import "dotenv/config";
 
 import bcrypt from "bcrypt";
 import {
@@ -70,6 +70,21 @@ const BUYERS = [
       documentStatus: DocumentStatus.PENDING,
     },
   },
+  {
+    name: "Lucas Match",
+    email: "lucas.match@emoveis.app",
+    phone: "+55 81 98888-3333",
+    profile: {
+      avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=500&q=80",
+      income: 16500,
+      downPayment: 150000,
+      needsFinancing: true,
+      purchaseType: "moradia",
+      documentStatus: DocumentStatus.VERIFIED,
+      documentId: "DOC-LUCAS-MATCH-2026",
+      verifiedAt: daysAgo(2),
+    },
+  },
 ] as const;
 
 const SELLERS = [
@@ -96,6 +111,12 @@ const SELLERS = [
     email: "pedro@emoveis.app",
     phone: "+55 81 97777-2020",
     avatarUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=500&q=80",
+  },
+  {
+    name: "Carla Anunciante",
+    email: "carla.seller@emoveis.app",
+    phone: "+55 81 96666-4444",
+    avatarUrl: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=500&q=80",
   },
 ] as const;
 
@@ -186,7 +207,7 @@ async function createUsers(passwordHash: string) {
 }
 
 async function createPreferences(buyers: Awaited<ReturnType<typeof createUsers>>["buyers"]) {
-  const [henrique, ana, beatriz] = buyers;
+  const [henrique, ana, beatriz, lucasMatch] = buyers;
 
   const henriquePreference = await prisma.preference.create({
     data: {
@@ -248,7 +269,27 @@ async function createPreferences(buyers: Awaited<ReturnType<typeof createUsers>>
     },
   });
 
-  return { henriquePreference, anaPreference, beatrizPreference };
+  const lucasMatchPreference = await prisma.preference.create({
+    data: {
+      userId: lucasMatch.id,
+      title: "Cenario de teste com match fechado",
+      minPrice: 200000,
+      maxPrice: 950000,
+      minAreaM2: 35,
+      maxAreaM2: 160,
+      minBedrooms: 2,
+      minBathrooms: 1,
+      minParkingSpots: 1,
+      propertyTypes: [PropertyType.APARTAMENTO, PropertyType.CASA, PropertyType.STUDIO],
+      neighborhoods: [],
+      city: "Recife",
+      state: "PE",
+      desiredAmenities: [Amenity.PORTARIA, Amenity.PISCINA, Amenity.PET_FRIENDLY],
+      isActive: true,
+    },
+  });
+
+  return { henriquePreference, anaPreference, beatrizPreference, lucasMatchPreference };
 }
 
 async function createOffers(sellerIds: string[]) {
@@ -314,10 +355,16 @@ async function createRelationshipData({
   preferences: Awaited<ReturnType<typeof createPreferences>>;
   offers: Awaited<ReturnType<typeof createOffers>>["offers"];
 }) {
-  const [henrique, ana, beatriz] = buyers;
+  const [henrique, ana, beatriz, lucasMatch] = buyers;
+  const carla = sellers.find((seller) => seller.email === "carla.seller@emoveis.app") ?? sellers[sellers.length - 1];
   const saoPauloOffers = offers.filter((offer) => offer.city === "Sao Paulo" && offer.status === OfferStatus.ATIVA);
   const recifeOffers = offers.filter((offer) => offer.city === "Recife" && offer.status === OfferStatus.ATIVA);
   const curitibaOffers = offers.filter((offer) => offer.city === "Curitiba" && offer.status === OfferStatus.ATIVA);
+  const carlaOffers = offers.filter((offer) => offer.userId === carla.id && offer.status === OfferStatus.ATIVA);
+  const otherSellerOffers = offers.filter((offer) => offer.userId !== carla.id && offer.status === OfferStatus.ATIVA);
+  const lucasMatchedOffer = carlaOffers.find((offer) => offer.city === "Recife") ?? carlaOffers[0] ?? recifeOffers[0];
+  const lucasPendingOffer = carlaOffers.find((offer) => offer.id !== lucasMatchedOffer?.id) ?? recifeOffers.find((offer) => offer.id !== lucasMatchedOffer?.id);
+  const sellerSentProposalOffer = otherSellerOffers.find((offer) => offer.city === "Recife") ?? otherSellerOffers[0];
 
   const featuredOffers = [
     ...saoPauloOffers.slice(0, 5),
@@ -340,12 +387,34 @@ async function createRelationshipData({
     })),
   });
 
+  if (lucasMatchedOffer) {
+    await prisma.match.upsert({
+      where: {
+        offerId_preferenceId: {
+          offerId: lucasMatchedOffer.id,
+          preferenceId: preferences.lucasMatchPreference.id,
+        },
+      },
+      update: { score: 98, status: MatchStatus.FEITO },
+      create: {
+        offerId: lucasMatchedOffer.id,
+        preferenceId: preferences.lucasMatchPreference.id,
+        score: 98,
+        status: MatchStatus.FEITO,
+        createdAt: hoursAgo(2),
+      },
+    });
+  }
+
   const proposalTargets = [
     { buyerId: henrique.id, offer: saoPauloOffers[0], valueOffset: -40000, status: ProposalStatus.PENDENTE },
     { buyerId: henrique.id, offer: saoPauloOffers[1], valueOffset: -20000, status: ProposalStatus.ACEITA },
     { buyerId: ana.id, offer: curitibaOffers[0] ?? saoPauloOffers[2], valueOffset: -30000, status: ProposalStatus.RECUSADA },
     { buyerId: beatriz.id, offer: recifeOffers[0], valueOffset: -25000, status: ProposalStatus.PENDENTE },
     { buyerId: beatriz.id, offer: recifeOffers[1], valueOffset: -15000, status: ProposalStatus.ACEITA },
+    { buyerId: lucasMatch.id, offer: lucasMatchedOffer, valueOffset: -10000, status: ProposalStatus.ACEITA },
+    { buyerId: lucasMatch.id, offer: lucasPendingOffer, valueOffset: -20000, status: ProposalStatus.PENDENTE },
+    { buyerId: carla.id, offer: sellerSentProposalOffer, valueOffset: -18000, status: ProposalStatus.PENDENTE },
   ].filter((item): item is { buyerId: string; offer: typeof offers[number]; valueOffset: number; status: ProposalStatus } => Boolean(item.offer));
 
   await prisma.proposal.createMany({
@@ -373,6 +442,9 @@ async function createRelationshipData({
       { userId: beatriz.id, offerId: recifeOffers[0]?.id, type: "new_compatible", title: "Recife esta cheio de oportunidades", description: "Novos imoveis em Boa Viagem, Casa Forte e Gracas.", read: false, createdAt: hoursAgo(1) },
       { userId: sellers[2].id, offerId: recifeOffers[0]?.id, type: "proposal", title: "Nova proposta recebida", description: "Beatriz demonstrou interesse em um imovel no Recife.", read: false, createdAt: hoursAgo(3) },
       { userId: sellers[0].id, offerId: saoPauloOffers[1]?.id, type: "proposal", title: "Proposta aceita", description: "Uma negociacao foi marcada como aceita.", read: true, createdAt: daysAgo(1) },
+      { userId: lucasMatch.id, offerId: lucasMatchedOffer?.id, type: "match", title: "Match fechado com Carla", description: "Seu interesse foi aceito e o contato do anunciante esta liberado.", read: false, createdAt: hoursAgo(1) },
+      { userId: carla.id, offerId: lucasPendingOffer?.id, type: "proposal", title: "Proposta pendente recebida", description: "Lucas Match enviou uma proposta que ainda nao foi aceita.", read: false, createdAt: hoursAgo(2) },
+      { userId: carla.id, offerId: sellerSentProposalOffer?.id, type: "interest_sent", title: "Proposta enviada pendente", description: "Voce enviou uma proposta para outro anunciante. Ela ainda esta pendente.", read: false, createdAt: hoursAgo(4) },
     ].filter((item) => Boolean(item.offerId)),
   });
 
