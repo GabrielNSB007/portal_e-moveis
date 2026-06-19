@@ -20,7 +20,7 @@ import { validateProperties } from "./validateProperties";
 
 const prisma = new PrismaClient();
 const passwordPlain = "123456";
-const OFFER_TOTAL = 170;
+const OFFER_TOTAL = 30;
 
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 const hoursAgo = (hours: number) => new Date(Date.now() - hours * 60 * 60 * 1000);
